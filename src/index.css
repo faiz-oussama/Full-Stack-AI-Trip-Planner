@@ -1,0 +1,143 @@
+@import './styles/fonts.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .dropdown {
+    @apply relative inline-block;
+  }
+
+  .dropdown-content {
+    @apply hidden absolute z-10 mt-2 w-48 bg-white rounded-md shadow-lg;
+  }
+
+  .dropdown-content a {
+    @apply block px-4 py-2 text-gray-800 hover:bg-gray-100;
+  }
+
+  .dropdown:hover .dropdown-content {
+    @apply block;
+  }
+}
+
+
+.wave-animation {
+  animation: wave 15s ease-in-out infinite;
+}
+
+
+
+* {
+  font-size: medium;
+}
+
+.header { height: 10vh; }
+.logo-container { height: 100%; }
+.logo-img { height: 50%; width: auto; object-fit: contain; }
+.slick-dots li button:before {
+  color: #4F46E5 !important;
+  font-size: 12px !important;
+}
+
+.slick-dots li.slick-active button:before {
+  color: #4F46E5 !important;
+  opacity: 1 !important;
+}
+
+.slick-slide {
+  opacity: 0.5;
+    transition: all 0.3s ease;
+    transform: scale(0.9);
+  }
+
+
+.slick-slide.slick-active {
+  opacity: 1;
+}
+
+.slick-slide.slick-center {
+  transform: scale(1);
+}
+
+.slick-dots {
+  bottom: -3rem;
+}
+
+.slick-dots li button:before {
+  font-size: 8px;
+  color: #E63946; /* Replace with the actual color value */
+  opacity: 0.3;
+  transition: all 0.3s ease;
+}
+
+
+.slick-dots li.slick-active button:before {
+  opacity: 1;
+  transform: scale(1.5);
+}
+
+/* Custom scroll animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-250px * 7));
+  }
+}
+
+/* Smooth transition for testimonials section */
+section {
+  position: relative;
+  background: transparent;
+}
+
+.from-transparent {
+  --tw-gradient-from: rgba(255, 255, 255, 0);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(255, 255, 255, 0));
+}
+
+.via-white {
+  --tw-gradient-stops: var(--tw-gradient-from), #ffffff, var(--tw-gradient-to, rgba(255, 255, 255, 0));
+}
+
+/* Testimonials section styling */
+.testimonials-gradient {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    rgba(249, 250, 251, 0.5) 50%,
+    rgba(243, 244, 246, 0.5) 100%
+  );
+}
+
+/* Update existing styles */
+.slick-slider {
+  position: relative;
+  z-index: 20; /* Ensure content stays above the gradient */
+  margin-top: 2rem;
+  padding-bottom: 4rem;
+}
+
+/* Enhanced gradient transitions */
+.from-white {
+  --tw-gradient-stops: theme(colors.white), theme(colors.white) 60%, transparent;
+}
+
+/* Improved typography spacing */
+.tracking-tight {
+  letter-spacing: -0.025em;
+}
+
+.leading-relaxed {
+  line-height: 1.75;
+}
