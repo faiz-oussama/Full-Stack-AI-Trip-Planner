@@ -23,8 +23,9 @@ import {
 } from '@heroicons/react/24/outline';
 import ColorThief from 'colorthief';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import BackgroundSlideshow from "./BackgroundSlideshow";
+
 const products = [
   { name: 'Analytics', description: 'Get a better understanding of your traffic', href: '#', icon: ChartPieIcon },
   { name: 'Engagement', description: 'Speak directly to your customers', href: '#', icon: CursorArrowRaysIcon },
@@ -32,6 +33,7 @@ const products = [
   { name: 'Integrations', description: 'Connect with third-party tools', href: '#', icon: SquaresPlusIcon },
   { name: 'Automations', description: 'Build strategic funnels that will convert', href: '#', icon: ArrowPathIcon },
 ]
+
 const callsToAction = [
   { name: 'Watch demo', href: '#', icon: PlayCircleIcon },
   { name: 'Contact sales', href: '#', icon: PhoneIcon },
@@ -39,7 +41,56 @@ const callsToAction = [
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [dominantColor, setDominantColor] = useState([36, 37, 37]); // default dark color
+  const [dominantColor, setDominantColor] = useState([36, 37, 37]);
+  const [scrolled, setScrolled] = useState(false);
+  const location = useLocation();
+  const isHomePage = location.pathname === '/';
+
+  // Track scroll position for enhanced header effects
+  useEffect(() => {
+    const handleScroll = () => {
+      const isScrolled = window.scrollY > 10;
+      if (isScrolled !== scrolled) {
+        setScrolled(isScrolled);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [scrolled]);
+
+  const getHeaderStyle = () => {
+    if (isHomePage) {
+      return { 
+        backgroundColor: `rgba(${dominantColor[0]}, ${dominantColor[1]}, ${dominantColor[2]}, 0.05)`,
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      };
+    }
+    
+    // Enhanced style for other pages with vibrant gradients and glassmorphism
+    return { 
+      background: scrolled
+        ? `linear-gradient(135deg, rgba(99, 102, 241, 0.09), rgba(168, 85, 247, 0.08))`
+        : `linear-gradient(135deg, rgba(99, 102, 241, 0.07), rgba(168, 85, 247, 0.06))`,
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      boxShadow: scrolled 
+        ? '0 4px 20px -2px rgba(99, 102, 241, 0.15)' 
+        : '0 2px 10px -2px rgba(99, 102, 241, 0.1)',
+      borderBottom: scrolled 
+        ? '1px solid rgba(99, 102, 241, 0.2)' 
+        : 'none',
+      transition: 'all 0.3s ease'
+    };
+  };
+
+  // Add this className conditional to your nav links
+  const getLinkClassName = () => {
+    return isHomePage 
+      ? "text-sm/6 font-semibold text-white"
+      : `text-sm/6 font-semibold ${scrolled ? 'text-gray-800' : 'text-gray-700'} hover:text-indigo-600 transition-colors duration-200`;
+  };
 
   useEffect(() => {
     const colorThief = new ColorThief();
@@ -54,7 +105,6 @@ export default function Header() {
         }
       }
     };
-
     // Listen for slide changes
     const observer = new MutationObserver(updateHeaderColor);
     const slideshow = document.querySelector('.slideshow-container');
@@ -65,29 +115,39 @@ export default function Header() {
         subtree: true 
       });
     }
-
     return () => observer.disconnect();
   }, []);
 
-  const headerStyle = {
-    backgroundColor: `rgba(${dominantColor[0]}, ${dominantColor[1]}, ${dominantColor[2]}, 0.05)`,
-    backdropFilter: 'blur(200px)',
-    borderBottom: 'none'
-  };
   return (
-    <header className="sticky top-0 z-50 transition-all duration-500" >
-      <div className="absolute inset-0 -z-10 overflow-hidden" style={headerStyle}>
-        <BackgroundSlideshow />
+    <header className={`sticky top-0 z-50 transition-all duration-500`}>
+      {/* Background elements */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        {isHomePage && <BackgroundSlideshow />}
+        {/* Always visible decorative background for non-homepage routes */}
+        {!isHomePage && (
+            <div className="absolute inset-0">
+              {/* Colored background gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 opacity-80"></div>
+              
+              {/* Decorative patterns */}
+              <div className="absolute inset-0 bg-[radial-gradient(#e0e7ff_1px,transparent_1px)] [background-size:20px_20px] opacity-30"></div>
+              
+              {/* Top highlight */}
+              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-300 to-transparent opacity-50"></div>
+            </div>
+        )}
       </div>
+
+      {/* Header overlay with glassmorphism */}
       <div 
-      className="absolute inset-0 w-full"
-      style={{
-        backgroundColor: `rgba(${dominantColor[0]}, ${dominantColor[1]}, ${dominantColor[2]}, 0.05)`,
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)', // Safari support
-      }}
-    />
-      <nav aria-label="Global" className="relative mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8 h-[10vh] border-none" >
+        className="absolute inset-0 w-full transition-all duration-300"
+        style={getHeaderStyle()}
+      />
+
+      <nav 
+        aria-label="Global" 
+        className={`relative mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8 h-[10vh] transition-all duration-300`}
+      >
         
         {/* Left Side*/}
         <div className="flex-1">
@@ -103,7 +163,6 @@ export default function Header() {
           </a>
         </div>
 
-
         {/* Open mobile menu */}
         <div className="flex lg:hidden">
           <button
@@ -116,15 +175,20 @@ export default function Header() {
           </button>
         </div>
 
-        {/* the center*/}
-        <div className="hidden lg:flex lg:justify-center gap-x-5">
-          <PopoverGroup className="flex gap-x-12">
+        {/* Center navigation - fixed width container to prevent shifting */}
+        <div className="hidden lg:flex lg:items-center lg:justify-center w-[400px]">
+          <PopoverGroup className="flex gap-x-12 justify-center w-full">
             <Popover className="relative">
-              <PopoverButton className="flex items-center gap-x-1 text-sm/6 font-semibold text-white">
+              <PopoverButton 
+                className={`${getLinkClassName()} flex items-center gap-x-2`}
+              >
                 Product
-                <ChevronDownIcon aria-hidden="true" className="size-5 flex-none text-gray-400" />
+                <ChevronDownIcon 
+                  className={`size-4 ${
+                    isHomePage ? 'text-gray-400' : 'text-gray-500'
+                  }`} 
+                />
               </PopoverButton>
-
               <PopoverPanel
                 transition
                 className="absolute -left-8 top-full z-10 mt-3 w-screen max-w-md overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-gray-900/5 transition data-[closed]:translate-y-1 data-[closed]:opacity-0 data-[enter]:duration-200 data-[leave]:duration-150 data-[enter]:ease-out data-[leave]:ease-in"
@@ -162,38 +226,39 @@ export default function Header() {
                 </div>
               </PopoverPanel>
             </Popover>
-
-            <a href="#" className="text-sm/6 font-semibold text-white">
+            <a href="#" className={getLinkClassName()}>
               Features
             </a>
-            <a href="#" className="text-sm/6 font-semibold text-white">
+            <a href="#" className={getLinkClassName()}>
               Marketplace
             </a>
-            <a href="#" className="text-sm/6 font-semibold text-white">
+            <a href="#" className={getLinkClassName()}>
               Company
             </a>
           </PopoverGroup>
         </div>
 
-
         {/* Right side */}
         <div className="flex items-center lg:flex lg:flex-1 lg:justify-end gap-x-4">
-            <Link to="/login" className="text-sm/6 font-semibold text-white">
-              Log in <span aria-hidden="true">&rarr;</span>
-            </Link>
-            <Button asChild>
-              <Link to="/create-trip">Create your Trip</Link>
-            </Button>
-          </div>
+          <Link 
+            to="/login" 
+            className={getLinkClassName()}
+          >
+            Log in <span aria-hidden="true">&rarr;</span>
+          </Link>
+          <Button 
+            className={isHomePage 
+              ? '' 
+              : `bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white shadow-md hover:shadow-lg transition-all duration-200`
+            }
+            asChild
+          >
+            <Link to="/create-trip">Create your Trip</Link>
+          </Button>
+        </div>
       </nav>
 
-
-
-
-
-
       {/* Mobile menu */}
-
       <Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen} className="lg:hidden">
         <div className="fixed inset-0 z-10" />
         <DialogPanel className="fixed inset-y-0 right-0 z-10 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">

@@ -110,6 +110,11 @@ section {
   --tw-gradient-stops: var(--tw-gradient-from), #ffffff, var(--tw-gradient-to, rgba(255, 255, 255, 0));
 }
 
+
+html {
+  overflow-y: scroll;
+}
+
 /* Testimonials section styling */
 .testimonials-gradient {
   background: linear-gradient(
@@ -141,3 +146,4 @@ section {
 .leading-relaxed {
   line-height: 1.75;
 }
+
