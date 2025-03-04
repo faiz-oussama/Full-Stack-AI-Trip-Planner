@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import './App.css'
 import App from './App.jsx'
+import { AuthProvider } from './auth/AuthProvider'
+import Login from './auth/Login'
+import PrivateRoute from './auth/PrivateRoute'
+import SignUp from './auth/registration'
 import Layout from './components/custom/Layout'
 import CreateTrip from './create-trip/index.jsx'
 import './index.css'
@@ -17,15 +21,23 @@ const router = createBrowserRouter([
       },
       {
         path: '/create-trip',
-        element: <CreateTrip />,
+        element: <PrivateRoute>
+                  <CreateTrip />
+                </PrivateRoute>,
       },
       {
-        path: '/planner',
-        element: <div>AI Planner Page</div>,
+        path: '/login',
+        element: <Login />,
+      },
+      {
+        path: '/signup',
+        element: <SignUp />,
       },
       {
         path: '/itinerary',
-        element: <div>My Itinerary Page</div>,
+        element: <PrivateRoute>
+                  <div>My Itinerary Page</div>
+                </PrivateRoute>,
       },
       {
         path: '/experiences',
@@ -49,6 +61,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </StrictMode>,
 );

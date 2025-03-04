@@ -22,9 +22,10 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import ColorThief from 'colorthief';
-import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState, useContext } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import BackgroundSlideshow from "./BackgroundSlideshow";
+import { AuthContext } from '@/auth/AuthProvider';
 
 const products = [
   { name: 'Analytics', description: 'Get a better understanding of your traffic', href: '#', icon: ChartPieIcon },
@@ -45,6 +46,9 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const isHomePage = location.pathname === '/';
+  const isLoginPage = location.pathname === '/login' || location.pathname === '/signup';
+  const { user, logoutUser } = useContext(AuthContext);
+  const navigate = useNavigate()
 
   // Track scroll position for enhanced header effects
   useEffect(() => {
@@ -118,8 +122,19 @@ export default function Header() {
     return () => observer.disconnect();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
   return (
-    <header className={`sticky top-0 z-50 transition-all duration-500`}>
+    <>
+      {!isLoginPage && (
+        <header className={`sticky top-0 z-50 transition-all duration-500`}>
       {/* Background elements */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
         {isHomePage && <BackgroundSlideshow />}
@@ -240,21 +255,31 @@ export default function Header() {
 
         {/* Right side */}
         <div className="flex items-center lg:flex lg:flex-1 lg:justify-end gap-x-4">
-          <Link 
-            to="/login" 
-            className={getLinkClassName()}
-          >
-            Log in <span aria-hidden="true">&rarr;</span>
-          </Link>
-          <Button 
-            className={isHomePage 
-              ? '' 
-              : `bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white shadow-md hover:shadow-lg transition-all duration-200`
-            }
-            asChild
-          >
-            <Link to="/create-trip">Create your Trip</Link>
-          </Button>
+          {user ? (
+            <button
+              onClick={handleLogout}
+              className={`text-sm/6 font-semibold ${isHomePage ? 'text-white' : 'text-gray-900'}`}
+            >
+              Log out <span aria-hidden="true">&rarr;</span>
+            </button>
+          ) : (
+              <a href="/login" className="text-sm/6 font-semibold text-white">
+                Log in <span aria-hidden="true">&rarr;</span>
+              </a>
+          )}
+          {isHomePage && 
+            (<Button 
+                asChild 
+                className="bg-sahara-red text-white hover:bg-sahara-red/90"
+                onClick={(e) => {
+                  if (!user) {
+                    e.preventDefault();
+                    navigate('/login');
+                  }
+                }}
+              >
+                <Link to={user ? "/create-trip" : "#"}>Create your Trip</Link>
+          </Button>)}
         </div>
       </nav>
 
@@ -333,5 +358,8 @@ export default function Header() {
         </DialogPanel>
       </Dialog>
     </header>
+  )}
+  </>
+    
   )
 }
