@@ -1,4 +1,5 @@
 'use client'
+import { AuthContext } from '@/auth/AuthProvider';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,10 +23,9 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import ColorThief from 'colorthief';
-import { useEffect, useState, useContext } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import BackgroundSlideshow from "./BackgroundSlideshow";
-import { AuthContext } from '@/auth/AuthProvider';
 
 const products = [
   { name: 'Analytics', description: 'Get a better understanding of your traffic', href: '#', icon: ChartPieIcon },
@@ -124,8 +124,10 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      await logoutUser();
-      navigate('/');
+      const success = await logoutUser();
+      if (success) {
+          navigate('/' , { replace: true });
+      } 
     } catch (error) {
       console.error("Logout error:", error);
     }

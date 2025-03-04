@@ -1,5 +1,6 @@
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { app } from './firebase';
 
 export const AuthContext = createContext(null);
@@ -28,10 +29,15 @@ export function AuthProvider({ children }) {
 
   const logoutUser = async () => {
     try {
+      setLoading(true);
       await auth.signOut();
+      setUser(null);
+      return true;
     } catch (error) {
       console.error("Logout error:", error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,13 +53,14 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     loading,
+    setLoading,
     loginUser,
     logoutUser
   };
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? <LoadingScreen /> : children}
     </AuthContext.Provider>
   );
 }

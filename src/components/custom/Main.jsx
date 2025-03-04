@@ -7,7 +7,7 @@ function Main() {
       <div className="absolute inset-0 -z-0">
         <BackgroundSlideshow />
       </div>
-      <div className=" z-10 px-4 mx-auto max-w-7xl sm:px-6 lg:px-8 relative pt-20">
+      <div className="z-10 px-4 mx-auto max-w-7xl sm:px-6 lg:px-8 relative pt-20">
         <div className="max-w-2xl text-left space-y-6">
           <span className="px-3 py-1 text-xs font-semibold text-white rounded-full bg-white/10 backdrop-blur-sm inline-block">
             Discover Morocco with AI
