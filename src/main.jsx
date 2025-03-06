@@ -9,6 +9,7 @@ import PrivateRoute from './auth/PrivateRoute'
 import SignUp from './auth/registration'
 import Layout from './components/custom/Layout'
 import CreateTrip from './create-trip/index.jsx'
+import ResultsPage from './generate-trip/ResultsPage.jsx'
 import './index.css'
 
 const router = createBrowserRouter([
@@ -23,6 +24,12 @@ const router = createBrowserRouter([
         path: '/create-trip',
         element: <PrivateRoute>
                   <CreateTrip />
+                </PrivateRoute>,
+      },
+      {
+        path: '/trip-results',
+        element: <PrivateRoute>
+                  <ResultsPage />
                 </PrivateRoute>,
       },
       {

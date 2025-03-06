@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import { CalendarIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from 'react';
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
+import { useNavigate } from 'react-router-dom';
 import Select from "react-select";
 import AccommodationPreferences from './AccommodationPreferences';
 import ActivityPreferences from './ActivityPreferences';
@@ -25,6 +26,7 @@ function CreateTrip() {
     from: new Date(),
     to: addDays(new Date(), 20),
   });
+  const navigate = useNavigate();
   const [budgetData, setBudgetData] = useState(null);
   const [place, setPlace] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -150,6 +152,7 @@ function CreateTrip() {
       return;
     }
   
+  
     const tripData = {
       destination: place?.label || place,
       travelers: {
@@ -209,9 +212,11 @@ function CreateTrip() {
         throw new Error(errorData.error || 'Failed to generate trip plan');
       }
   
-      const data = await response.json();
-      console.log('Received trip plan:', data);
-      setTripPlan(data.tripPlan);
+      const result= await response.json();
+      console.log('Received trip plan:', result);
+      navigate('/trip-results', { 
+        state: { tripPlan: result.data }
+      });
       
     } catch (error) {
       console.error('Error generating trip plan:', error);
@@ -439,23 +444,7 @@ function CreateTrip() {
                   </button>
                 </motion.div>
               )}
-              {tripPlan && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-8 p-6 bg-white rounded-2xl shadow-lg"
-                >
-                  <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                    Your Personalized Trip Plan
-                  </h3>
-                  <div className="prose prose-indigo max-w-none">
-                    {/* Format the AI response here */}
-                    <pre className="whitespace-pre-wrap text-sm text-gray-600">
-                      {tripPlan}
-                    </pre>
-                  </div>
-                </motion.div>
-              )}
+              
             </div>
           </div>
         </motion.div>

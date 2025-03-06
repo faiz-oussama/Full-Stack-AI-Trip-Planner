@@ -14,62 +14,151 @@ const genAI = new GoogleGenerativeAI("AIzaSyBAfh5HVRuUehApbjOltLKVwFULDOC2QLA");
 
 app.post("/generate-trip", async (req, res) => {
     try {
-        const { 
-            destination, 
-            travelers, 
-            dates, 
-            budget, 
-            transportation, 
-            accommodation, 
-            activities 
-        } = req.body;
+        const { destination, travelers, dates, budget, transportation, accommodation, activities } = req.body;
         
-        const prompt = `Create a detailed ${dates.duration}-day trip itinerary for ${destination}, Morocco.
+        const prompt = `Generate a comprehensive travel plan for ${destination}, Morocco for ${dates.duration} days and ${dates.duration - 1} nights.
+
+        Requirements:
+       "tripDetails": {
+            "destination": "${destination}",
+            "duration": {
+            "days": ${dates.duration},
+            "nights": ${dates.duration - 1}
+            },
+            "dates": {
+            "start": "${dates.startDate}",
+            "end": "${dates.endDate}"
+            },
+            "travelers": {
+            "count": ${travelers.count},
+            "type": "${travelers.label}"
+            },
+            "budget": {
+            "level": "${budget.level}",
+            "currency": "MAD"
+            }
+
+        Please provide a detailed plan in JSON format with the following structure:
+        "transportation": {
+                "selectedModes": ${JSON.stringify(transportation.modes)},
+                "flights": [
+                {
+                    "airline": "",
+                    "departure": "",
+                    "arrival": "",
+                    "price": "",
+                    "bookingUrl": ""
+                }
+                ]
+            },
+            "accommodation": {
+                "hotels": [
+                {
+                    "name": "",
+                    "rating": 0,
+                    "address": "",
+                    "photoUrl": "",
+                    "coordinates": {
+                    "latitude": 0,
+                    "longitude": 0
+                    },
+                    "description": "",
+                    "priceRange": "",
+                    "nearbyAttractions": [
+                    {
+                        "name": "",
+                        "distance": "",
+                        "description": ""
+                    }
+                    ]
+                }
+                ]
+            },
+            "attractions": [
+                {
+                "name": "",
+                "details": "",
+                "imageUrl": "",
+                "coordinates": {
+                    "latitude": 0,
+                    "longitude": 0
+                },
+                "ticketPrice": "",
+                "visitDuration": "",
+                "openingHours": ""
+                }
+            ],
+            "dailyPlan": [
+                {
+                "day": 1,
+                "activities": [
+                    {
+                    "time": "",
+                    "activity": "",
+                    "location": "",
+                    "transport": "",
+                    "cost": ""
+                    }
+                ],
+                "meals": [
+                    {
+                    "type": "",
+                    "venue": "",
+                    "cuisine": "",
+                    "estimatedCost": ""
+                    }
+                ]
+                }
+            ],
+            "bestTimeToVisit": {
+                "season": "",
+                "months": [],
+                "weather": "",
+                "crowdLevel": ""
+            }
+            }
+
+        Include for each hotel option:
+        - Hotel name, address, price range, image URL
+        - Geo coordinates (latitude, longitude)
+        - Rating and description
+        - Nearby attractions
+
+        For each attraction/place:
+        - Place name and detailed description
+        - Image URL and geo coordinates
+        - Ticket prices and visiting hours
+        - Recommended time to spend
         
-        Group Size: ${travelers.label}
-        Dates: ${dates.startDate} to ${dates.endDate}
-        
-        Budget Level: ${budget.level}
-        Budget Allocation:
-        - Transportation: ${budget.allocations.transportation}%
-        - Accommodation: ${budget.allocations.accommodation}%
-        - Food: ${budget.allocations.food}%
-        - Activities: ${budget.allocations.activities}%
-        
-        Transportation Preferences:
-        - Preferred Modes: ${Object.entries(transportation.modes).map(([mode, pref]) => `${mode}: ${pref}`).join(', ')}
-        - Route Preference: ${transportation.routePreference}
-        
-        Accommodation Preferences:
-        - Type: ${accommodation.type}
-        - Rating: ${accommodation.rating} stars
-        - Required Amenities: ${accommodation.amenities.join(', ')}
-        
-        Activity Interests: ${activities.interests.join(', ')}
-        Travel Pace: ${activities.pace}
-        Rest Days: ${activities.schedule.restDays}
-        Special Requirements: ${activities.schedule.specialRequirements}
-        
-        Please provide:
-        1. A day-by-day itinerary
-        2. Recommended accommodations within budget
-        3. Must-see attractions and experiences
-        4. Local food recommendations
-        5. Transportation tips
-        6. Estimated costs for each day
-        
-        Format the response in a clear, structured way with daily breakdowns.`;
+        For daily plan:
+        - Detailed itinerary with timing
+        - Distance between locations
+        - Transport options
+        - Meal recommendations
+        - Estimated costs
+
+        Return ONLY a valid JSON string without any additional text or formatting. just a directly response with a JSON object.`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const result = await model.generateContent(prompt);
-        const tripPlan = result.response.text();
+        let rawResponse = result.response.text();
+        rawResponse = rawResponse.replace(/```json\n|\n```/g, '').trim();
+        // Parse the raw response to ensure it's valid JSON
+        const tripPlan = JSON.parse(rawResponse);
 
-        res.json({ tripPlan });
+        res.json({
+            success: true,
+            data: tripPlan,
+            message: "Trip plan generated successfully"
+        });
+
     } catch (error) {
         console.error("Error generating trip:", error);
         res.status(500).json({ 
+            success: false,
             error: "Failed to generate trip",
-            details: error.message 
+            details: error.message,
+            timestamp: new Date().toISOString()
         });
     }
 });
