@@ -10,30 +10,31 @@ import { cn } from "@/lib/utils";
 import { addDays, format } from "date-fns";
 import { motion } from 'framer-motion';
 import { CalendarIcon } from "lucide-react";
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import GooglePlacesAutocomplete from 'react-google-places-autocomplete';
 import Select from "react-select";
+import AccommodationPreferences from './AccommodationPreferences';
+import ActivityPreferences from './ActivityPreferences';
 import BudgetSelector from './BudgetSelector';
 import { LoadingIndicator } from './LoadingIndicator';
 import TransportationPreferences from './TransportationPreferences';
-import AccommodationPreferences from './AccommodationPreferences';
-import ActivityPreferences from './ActivityPreferences';
 
 
 function CreateTrip() {
-  const [place, setPlace] = useState(null);
-  const [date, setDate] = useState({
+    const [date, setDate] = useState({
     from: new Date(),
     to: addDays(new Date(), 20),
   });
-  
+  const [budgetData, setBudgetData] = useState(null);
+  const [place, setPlace] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [selectedBudget, setSelectedBudget] = useState(null);
+  const [numberOfPeople, setNumberOfPeople] = useState(null);
   const [selectedTransportation, setSelectedTransportation] = useState(null);
   const [selectedAccommodation, setSelectedAccommodation] = useState(null);
   const [selectedActivities, setSelectedActivities] = useState(null);
   const [selectedAccommodationType, setSelectedAccommodationType] = useState(null);
+  const [tripPlan, setTripPlan] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const commonInputStyles = {
     control: (provided, state) => ({
@@ -82,8 +83,8 @@ function CreateTrip() {
   };
 
   const searchOptions = {
-    componentRestrictions: { country: 'ma' }, // 'ma' is the country code for Morocco
-    types: ['(cities)'] // Restrict to cities only
+    componentRestrictions: { country: 'ma' },
+    types: ['(cities)']
   };
 
   useEffect(() => {
@@ -95,9 +96,128 @@ function CreateTrip() {
     }
   }, [isLoading]);
 
-  const handleInputChange = (inputValue) => {
+  const handleDestinationChange = (inputValue) => {
     if (inputValue) {
       setIsLoading(true);
+      const selectedValue = inputValue.label || inputValue;
+      setPlace(selectedValue);
+      console.log('Destination:', selectedValue);
+    }
+  };
+  const handleNumberOfPeopleChange = (numberOfPeople) => {
+    setNumberOfPeople(numberOfPeople);
+    console.log('Number of people:', numberOfPeople.value);
+  }
+  const handleBudgetSelection = useCallback((budgetData) => {
+    console.log("Budget Data Received:", budgetData);
+    setBudgetData(budgetData);
+  }, []);
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate); 
+    if (newDate?.from && newDate?.to) {
+      const tripDuration = Math.ceil(
+        (newDate.to.getTime() - newDate.from.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      console.log('Trip duration:', tripDuration, 'days');
+    }
+  };
+
+  const handleTransportationSelection = (transportationData) => {
+    setSelectedTransportation(transportationData);
+    console.log('Transportation preferences:', transportationData);
+  };
+
+  const handleAccommodationSelection = (accommodationData) => {
+    setSelectedAccommodation(accommodationData);
+    console.log('Accommodation preferences:', accommodationData);
+  };
+
+  const handleActivitySelect = (activityData) => {
+    setSelectedActivities(activityData);
+    console.log('Activity preferences:', activityData);
+  };
+
+  // Add this new function after your existing handlers
+  const handleCreateTrip = async () => {
+    setIsGenerating(true);
+  
+    // Add validation for required fields
+    if (!place || !numberOfPeople || !date.from || !date.to || !budgetData) {
+      console.error('Missing required fields');
+      setIsGenerating(false);
+      // Add error notification here
+      return;
+    }
+  
+    const tripData = {
+      destination: place?.label || place,
+      travelers: {
+        count: numberOfPeople?.value,
+        label: numberOfPeople?.label
+      },
+      dates: {
+        startDate: format(date.from, "LLL dd, y"),
+        endDate: format(date.to, "LLL dd, y"),
+        duration: Math.ceil((date.to.getTime() - date.from.getTime()) / (1000 * 60 * 60 * 24))
+      },
+      budget: {
+        level: budgetData?.budget,
+        allocations: {
+          transportation: budgetData?.allocations?.transportation || 0,
+          accommodation: budgetData?.allocations?.accommodation || 0,
+          food: budgetData?.allocations?.food || 0,
+          activities: budgetData?.allocations?.activities || 0
+        }
+      },
+      transportation: {
+        modes: selectedTransportation?.transportModes || {},
+        routePreference: selectedTransportation?.routePreference || ''
+      },
+      accommodation: {
+        type: selectedAccommodation?.type || '',
+        rating: selectedAccommodation?.rating || 0,
+        amenities: selectedAccommodation?.amenities || []
+      },
+      activities: {
+        interests: selectedActivities?.interests || [],
+        pace: selectedActivities?.pace || '',
+        schedule: {
+          restDays: selectedActivities?.schedule?.restDays || '',
+          specialRequirements: selectedActivities?.schedule?.specialRequirements || ''
+        }
+      }
+    };
+  
+    // Log the data being sent
+    console.log('Sending trip data:', tripData);
+  
+    try {
+      const response = await fetch('http://localhost:5000/generate-trip', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tripData)
+      });
+  
+      // Log the response status
+      console.log('Response status:', response.status);
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate trip plan');
+      }
+  
+      const data = await response.json();
+      console.log('Received trip plan:', data);
+      setTripPlan(data.tripPlan);
+      
+    } catch (error) {
+      console.error('Error generating trip plan:', error);
+      // Add error state and user notification
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -153,12 +273,16 @@ function CreateTrip() {
                 apiOptions={{ language: 'en' }}
                 autocompletionRequest={searchOptions}
                 selectProps={{
-                  place,
-                  onChange: setPlace,
+                  value: place,
+                  onChange: (option) => {
+                    setIsLoading(true);
+                    setPlace(option);
+                    console.log('Selected place:', option);
+                  },
                   styles: commonInputStyles,
                   placeholder: 'Discover Marrakech, Fes, Casablanca, and more...',
                   isLoading,
-                  onInputChange: handleInputChange,
+                  onInputChange: handleDestinationChange,
                   components: {
                     DropdownIndicator: () => null,
                     IndicatorSeparator: () => null,
@@ -182,8 +306,8 @@ function CreateTrip() {
                     { value: '6', label: '6+ people' }
                   ]}
                   placeholder="Select number of travelers"
-                  value={selectedOption}
-                  onChange={setSelectedOption}
+                  value={numberOfPeople}
+                  onChange={handleNumberOfPeopleChange}
                 />
               </div>
               
@@ -227,7 +351,7 @@ function CreateTrip() {
                       mode="range"
                       defaultMonth={date?.from}
                       selected={date}
-                      onSelect={setDate}
+                      onSelect={handleDateChange}
                       numberOfMonths={2}
                       className="rounded-2xl p-3"
                     />
@@ -249,7 +373,9 @@ function CreateTrip() {
                       </span>
                     </div>
                   </div>
-                  <BudgetSelector />
+                  <BudgetSelector onBudgetSelect={handleBudgetSelection} />
+
+                  {/* Third Section: Transportation and Accommodation Preferences */}
                   <div className="relative py-8">
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-300"></div>
@@ -260,8 +386,10 @@ function CreateTrip() {
                         </span>
                       </div>
                   </div>
-                  <TransportationPreferences />
+                  <TransportationPreferences onTransportationSelect={handleTransportationSelection} />
 
+
+                  {/* Fourth Section: Accommodation Preferences */}
                   <div className="relative py-8">
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-300"></div>
@@ -272,8 +400,10 @@ function CreateTrip() {
                         </span>
                       </div>
                   </div>
+                  <AccommodationPreferences onAccommodationSelect={handleAccommodationSelection} />
 
-                  <AccommodationPreferences />
+
+                  {/* Fifth Section: Activity Preferences */}
                   <div className="relative py-8">
                       <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-300"></div>
@@ -284,7 +414,7 @@ function CreateTrip() {
                         </span>
                       </div>
                   </div>
-                  <ActivityPreferences />
+                  <ActivityPreferences onActivitySelect={handleActivitySelect} />
                 
               {place && (
                 <motion.div
@@ -294,10 +424,36 @@ function CreateTrip() {
                 >
                   <button
                     type="button"
-                    className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-2xl text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] transform-gpu"
+                    onClick={handleCreateTrip}
+                    disabled={isGenerating}
+                    className="w-full flex items-center justify-center px-8 py-4 text-lg font-medium rounded-2xl text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 transition-all duration-300 shadow-lg hover:shadow-2xl hover:scale-[1.02] transform-gpu disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Create My Moroccan Journey
+                    {isGenerating ? (
+                      <>
+                        <LoadingIndicator className="mr-2" />
+                        Generating Your Trip Plan...
+                      </>
+                    ) : (
+                      'Create My Moroccan Journey'
+                    )}
                   </button>
+                </motion.div>
+              )}
+              {tripPlan && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-8 p-6 bg-white rounded-2xl shadow-lg"
+                >
+                  <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                    Your Personalized Trip Plan
+                  </h3>
+                  <div className="prose prose-indigo max-w-none">
+                    {/* Format the AI response here */}
+                    <pre className="whitespace-pre-wrap text-sm text-gray-600">
+                      {tripPlan}
+                    </pre>
+                  </div>
                 </motion.div>
               )}
             </div>
@@ -308,9 +464,7 @@ function CreateTrip() {
   );
 }
 
-// Add PropTypes if needed
 CreateTrip.propTypes = {
-  // Add any props here if needed
 };
 
 export default CreateTrip;

@@ -1,4 +1,5 @@
-import { Plane, Train, Car, Bus } from 'lucide-react';
+import { Bus, Car, Plane, Train } from 'lucide-react';
+import { useState } from 'react';
 
 const transportModes = [
   {
@@ -29,7 +30,31 @@ const routePreferences = [
   { id: 'balanced', label: 'Balanced (Time & Scenery)' }
 ];
 
-export default function TransportationPreferences() {
+export default function TransportationPreferences({ onTransportationSelect }) {
+  const [selectedModes, setSelectedModes] = useState({});
+  const [routePreference, setRoutePreference] = useState('');
+
+  const handleTransportModeChange = (modeName, value) => {
+    const newModes = {
+      ...selectedModes,
+      [modeName]: value
+    };
+    setSelectedModes(newModes);
+    
+    onTransportationSelect({
+      transportModes: newModes,
+      routePreference
+    });
+  };
+
+  const handleRoutePreferenceChange = (value) => {
+    setRoutePreference(value);
+    onTransportationSelect({
+      transportModes: selectedModes,
+      routePreference: value
+    });
+  };
+
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
@@ -48,7 +73,11 @@ export default function TransportationPreferences() {
               <Icon className="w-5 h-5 text-indigo-600" />
               <h3 className="font-medium text-gray-900">{name}</h3>
             </div>
-            <select className="w-full p-2 border rounded-lg text-sm">
+            <select 
+              className="w-full p-2 border rounded-lg text-sm"
+              value={selectedModes[name] || ''}
+              onChange={(e) => handleTransportModeChange(name, e.target.value)}
+            >
               <option value="">Select preference</option>
               {options.map(option => (
                 <option key={option} value={option.toLowerCase()}>
@@ -69,6 +98,8 @@ export default function TransportationPreferences() {
                 type="radio"
                 name="routePreference"
                 value={id}
+                checked={routePreference === id}
+                onChange={(e) => handleRoutePreferenceChange(e.target.value)}
                 className="text-indigo-600 focus:ring-indigo-500"
               />
               <span className="text-gray-700">{label}</span>

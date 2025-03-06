@@ -1,5 +1,5 @@
 import { Car, Compass, DollarSign, Home, Utensils } from 'lucide-react';
-import { useState } from 'react';
+import { useState , useEffect } from 'react';
 
 const budgetOptions = [
   { 
@@ -52,7 +52,7 @@ const allocationCategories = [
   }
 ];
 
-export default function BudgetSelector() {
+export default function BudgetSelector({ onBudgetSelect }) {
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [allocations, setAllocations] = useState({
     transportation: 25,
@@ -62,12 +62,27 @@ export default function BudgetSelector() {
   });
 
   const handleAllocationChange = (category, value) => {
-    setAllocations(prev => ({
-      ...prev,
-      [category]: parseInt(value)
-    }));
+    setAllocations((prevAllocations) => {
+      const newAllocations = {
+        ...prevAllocations,
+        [category]: parseInt(value),
+      };
+
+      return newAllocations;
+    });
   };
 
+  const handleBudgetSelect = (budget) => {
+      setSelectedBudget(budget);
+    }
+
+  useEffect(() => {
+      if (selectedBudget) {
+        onBudgetSelect({ budget: selectedBudget, allocations });
+      }
+    }, [selectedBudget, allocations, onBudgetSelect]);
+  
+  
   return (
     <div className="max-w-4xl mx-auto space-y-12">
       {/* Existing budget selection */}
@@ -85,7 +100,7 @@ export default function BudgetSelector() {
           {budgetOptions.map((budget) => (
             <button
               key={budget.value}
-              onClick={() => setSelectedBudget(budget.value)}
+              onClick={() => handleBudgetSelect(budget.value)}
               className={`
                 relative p-4 rounded-lg border-2 transition-all duration-300
                 flex flex-col items-center justify-center

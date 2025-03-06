@@ -1,4 +1,5 @@
 import { Coffee, Home, Star, Waves, Wifi, Wind } from 'lucide-react';
+import { useState } from 'react';
 
 const accommodationTypes = [
   { id: 'hotel', label: 'Hotel', icon: Home },
@@ -14,7 +15,41 @@ const amenities = [
   { id: 'ac', label: 'Air Conditioning', icon: Wind }
 ];
 
-export default function AccommodationPreferences() {
+export default function AccommodationPreferences({ onAccommodationSelect }) {
+  const [selectedAccommodation, setSelectedAccommodation] = useState(null);
+  const [selectedRating, setSelectedRating] = useState(null);
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
+  
+  const handleAccommodationSelect = (value) => {
+    setSelectedAccommodation(value);
+    onAccommodationSelect({
+      type: value,
+      rating: selectedRating,
+      amenities: selectedAmenities
+    });
+  };
+
+  const handleRatingSelect = (value) => {
+    setSelectedRating(value);
+    onAccommodationSelect({
+      type: selectedAccommodation,
+      rating: value,
+      amenities: selectedAmenities
+    });
+  };
+
+  const handleAmenitySelect = (value) => {
+    if (selectedAmenities.includes(value)) {
+      setSelectedAmenities(selectedAmenities.filter((amenity) => amenity !== value));
+    } else {
+      setSelectedAmenities([...selectedAmenities, value]);
+    }
+    onAccommodationSelect({
+      type: selectedAccommodation,
+      rating: selectedRating,
+      amenities: selectedAmenities
+    })
+  };
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
@@ -38,7 +73,9 @@ export default function AccommodationPreferences() {
                 type="radio"
                 name="accommodationType"
                 value={id}
+                checked={selectedAccommodation === id}
                 className="text-indigo-600 focus:ring-indigo-500"
+                onChange={(e) => handleAccommodationSelect(e.target.value)}
               />
               <Icon className="w-5 h-5 text-indigo-600 mx-3" />
               <span className="text-gray-700">{label}</span>
@@ -59,7 +96,9 @@ export default function AccommodationPreferences() {
                 type="radio"
                 name="starRating"
                 value={rating}
+                checked={selectedRating === rating}
                 className="text-indigo-600 focus:ring-indigo-500"
+                onChange={(e) => handleRatingSelect(Number(e.target.value))}
               />
               <div className="ml-2 flex items-center">
                 {Array(rating).fill(<Star className="w-4 h-4 text-yellow-400" />)}
@@ -80,7 +119,9 @@ export default function AccommodationPreferences() {
               <input
                 type="checkbox"
                 name={id}
+                checked={selectedAmenities.includes(id)}
                 className="text-indigo-600 focus:ring-indigo-500"
+                onChange={() => handleAmenitySelect(id)}
               />
               <Icon className="w-5 h-5 text-indigo-600 mx-3" />
               <span className="text-gray-700">{label}</span>
