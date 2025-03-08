@@ -78,9 +78,4 @@
   display: block;
 }
 
-/* Zellige-inspired border */
-header {
-  border-bottom: 2px solid;
-  border-image: linear-gradient(45deg, #9A3334 20%, #4A90E2 80%) 1;
-}
 

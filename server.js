@@ -3,6 +3,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import { fetchPlacePhoto } from "./src/utils/fetchPlacePhoto.js";
 
 dotenv.config();
 
@@ -12,14 +13,41 @@ app.use(bodyParser.json());
 
 const genAI = new GoogleGenerativeAI("AIzaSyBAfh5HVRuUehApbjOltLKVwFULDOC2QLA");
 
+function sanitizeJSONString(str) {
+    return str
+        .replace(/'/g, '"')
+        .replace(/(?:\r\n|\r|\n)/g, '') 
+        .replace(/,\s*([\]}])/g, '$1')
+        .replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+        .replace(/:\s*'([^']*?)'/g, ':"$1"')
+        .replace(/\\/g, '\\\\')
+        .replace(/"\s+/g, '"')
+        .replace(/\s+"/g, '"');
+}
+
+function parseAndValidateJSON(jsonString) {
+    try {
+        return JSON.parse(jsonString);
+    } catch (firstError) {
+        console.log("Initial JSON parse failed, attempting cleanup...");
+        try {
+            const sanitized = sanitizeJSONString(jsonString);
+            return JSON.parse(sanitized);
+        } catch (secondError) {
+            throw new Error(`JSON Parse Error: ${secondError.message}\nPosition: ${secondError.position}`);
+        }
+    }
+}
+
 app.post("/generate-trip", async (req, res) => {
     try {
-        const { destination, travelers, dates, budget, transportation, accommodation, activities } = req.body;
+        const { origin, destination, travelers, dates, budget, transportation, accommodation, activities } = req.body;
         
-        const prompt = `Generate a comprehensive travel plan for ${destination}, Morocco for ${dates.duration} days and ${dates.duration - 1} nights.
+        const prompt = `Generate a comprehensive travel plan from ${origin} to ${destination}, Morocco for ${dates.duration} days and ${dates.duration - 1} nights.
 
         Requirements:
        "tripDetails": {
+            "origin": "${origin}",
             "destination": "${destination}",
             "duration": {
             "days": ${dates.duration},
@@ -37,79 +65,73 @@ app.post("/generate-trip", async (req, res) => {
             "level": "${budget.level}",
             "currency": "MAD"
             }
+        
+        Also include the flight details for each flight option from the origin to the destination.
 
         Please provide a detailed plan in JSON format with the following structure:
         "transportation": {
                 "selectedModes": ${JSON.stringify(transportation.modes)},
-                "flights": [
-                {
-                    "airline": "",
-                    "departure": "",
-                    "arrival": "",
-                    "price": "",
-                    "bookingUrl": ""
-                }
-                ]
+                "flights": [{
+                "airline": "",
+                "departure": "",
+                "arrival": "",
+                "price": "",
+                "bookingUrl": ""
+                }]
             },
             "accommodation": {
-                "hotels": [
-                {
-                    "name": "",
-                    "rating": 0,
-                    "address": "",
-                    "photoUrl": "",
-                    "coordinates": {
-                    "latitude": 0,
-                    "longitude": 0
-                    },
-                    "description": "",
-                    "priceRange": "",
-                    "nearbyAttractions": [
-                    {
-                        "name": "",
-                        "distance": "",
-                        "description": ""
-                    }
-                    ]
-                }
-                ]
-            },
-            "attractions": [
-                {
+                "hotels": [{
                 "name": "",
-                "details": "",
-                "imageUrl": "",
+                "rating": 0,
+                "address": "",
+                "photoUrl": "",
                 "coordinates": {
                     "latitude": 0,
                     "longitude": 0
                 },
+                "description": "",
+                "priceRange": "",
+                "nearbyAttractions": [{
+                    "name": "",
+                    "distance": "",
+                    "description": "",
+                    "photoUrl": ""
+                }]
+                }]
+            },
+            "attractions": [{
+                "name": "",
+                "details": "",
+                "imageUrl": "",
+                "coordinates": {
+                "latitude": 0,
+                "longitude": 0
+                },
                 "ticketPrice": "",
                 "visitDuration": "",
                 "openingHours": ""
-                }
-            ],
-            "dailyPlan": [
-                {
+            }],
+            "dailyPlan": [{
                 "day": 1,
-                "activities": [
-                    {
-                    "time": "",
-                    "activity": "",
-                    "location": "",
-                    "transport": "",
-                    "cost": ""
-                    }
-                ],
-                "meals": [
-                    {
-                    "type": "",
-                    "venue": "",
-                    "cuisine": "",
-                    "estimatedCost": ""
-                    }
-                ]
-                }
-            ],
+                    "activities": [{
+                        "time": "",
+                        "activity": "",
+                        "location": "",
+                        "transport": "",
+                        "cost": ""
+                        }],
+                    "meals": [{
+                        "restaurant": "",
+                        "mealType": "",
+                        "location": "",
+                        "time": "",
+                        "rating": 4.5,
+                        "cuisineType": [],
+                        "recommendedDishes": [],
+                        "priceRange": "",
+                        "imageUrl": "" (keep it empty, not required)
+                    }]
+            }],
             "bestTimeToVisit": {
                 "season": "",
                 "months": [],
@@ -119,14 +141,21 @@ app.post("/generate-trip", async (req, res) => {
             }
 
         Include for each hotel option:
-        - Hotel name, address, price range, image URL
+        - Restaurant name, address, price range
         - Geo coordinates (latitude, longitude)
+        - Rating and description
+        - Nearby attractions
+
+         Include for each meal all the details for each option:
+        - Hotel name, address, price range
+        - Geo coordinates (latitude, longitude)
+        - keep the imageUrl empty
         - Rating and description
         - Nearby attractions
 
         For each attraction/place:
         - Place name and detailed description
-        - Image URL and geo coordinates
+        - geo coordinates
         - Ticket prices and visiting hours
         - Recommended time to spend
         
@@ -135,16 +164,55 @@ app.post("/generate-trip", async (req, res) => {
         - Distance between locations
         - Transport options
         - Meal recommendations
-        - Estimated costs
+        - Estimated costs        
 
-        Return ONLY a valid JSON string without any additional text or formatting. just a directly response with a JSON object.`;
+        Return ONLY a valid JSON string without any additional text or formatting . just a directly response with a JSON object.`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const result = await model.generateContent(prompt);
         let rawResponse = result.response.text();
-        rawResponse = rawResponse.replace(/```json\n|\n```/g, '').trim();
-        // Parse the raw response to ensure it's valid JSON
-        const tripPlan = JSON.parse(rawResponse);
+
+        rawResponse = rawResponse
+            .replace(/```json\n|\n```/g, '')
+            .trim();
+
+        console.log("Raw response length:", rawResponse.length);
+        
+        const tripPlan = parseAndValidateJSON(rawResponse);
+
+        if (!tripPlan || typeof tripPlan !== 'object') {
+            throw new Error('Invalid trip plan structure');
+        }
+
+        const requiredProperties = ['tripDetails', 'accommodation', 'attractions', 'dailyPlan'];
+        for (const prop of requiredProperties) {
+            if (!tripPlan[prop]) {
+                throw new Error(`Missing required property: ${prop}`);
+            }
+        }
+
+        await Promise.all([
+            ...tripPlan.dailyPlan.flatMap(day =>
+                day.meals.map(async (meal) => {
+                    const photoUrl = await fetchPlacePhoto(meal.restaurant, destination);
+                    if (photoUrl) {
+                        meal.imageUrl = photoUrl;
+                    }
+                })
+            ),
+            ...tripPlan.accommodation.hotels.map(async (hotel) => {
+                const photoUrl = await fetchPlacePhoto(hotel.name, destination);
+                if (photoUrl) {
+                    hotel.photoUrl = photoUrl;
+                }
+            }),
+            ...tripPlan.attractions.map(async (attraction) => {
+                const photoUrl = await fetchPlacePhoto(attraction.name, destination);
+                if (photoUrl) {
+                    attraction.imageUrl = photoUrl;
+                }
+            })
+        ]);
 
         res.json({
             success: true,
@@ -158,6 +226,7 @@ app.post("/generate-trip", async (req, res) => {
             success: false,
             error: "Failed to generate trip",
             details: error.message,
+            raw: error.toString(),
             timestamp: new Date().toISOString()
         });
     }

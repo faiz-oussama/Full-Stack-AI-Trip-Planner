@@ -29,7 +29,9 @@ function CreateTrip() {
   const navigate = useNavigate();
   const [budgetData, setBudgetData] = useState(null);
   const [place, setPlace] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [DepartureCity , setDepartureCity] = useState(null);
+  const [isDestinationLoading, setIsDestinationLoading] = useState(false);
+  const [isDepartureLoading, setIsDepartureLoading] = useState(false);
   const [numberOfPeople, setNumberOfPeople] = useState(null);
   const [selectedTransportation, setSelectedTransportation] = useState(null);
   const [selectedAccommodation, setSelectedAccommodation] = useState(null);
@@ -90,22 +92,41 @@ function CreateTrip() {
   };
 
   useEffect(() => {
-    if (isLoading) {
+    if (isDestinationLoading) {
       const timer = setTimeout(() => {
-        setIsLoading(false);
+        setIsDestinationLoading(false);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [isLoading]);
+  }, [isDestinationLoading]);
+
+  useEffect(() => {
+    if (isDepartureLoading) {
+      const timer = setTimeout(() => {
+        setIsDepartureLoading(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isDepartureLoading]);
 
   const handleDestinationChange = (inputValue) => {
     if (inputValue) {
-      setIsLoading(true);
+      setIsDestinationLoading(true);
       const selectedValue = inputValue.label || inputValue;
       setPlace(selectedValue);
       console.log('Destination:', selectedValue);
     }
   };
+
+  const handleDepartureChange = (inputValue) => {
+    if (inputValue) {
+      setIsDepartureLoading(true);
+      const selectedValue = inputValue.label || inputValue;
+      setDepartureCity(selectedValue);
+      console.log('Departure:', selectedValue);
+    }
+  };
+
   const handleNumberOfPeopleChange = (numberOfPeople) => {
     setNumberOfPeople(numberOfPeople);
     console.log('Number of people:', numberOfPeople.value);
@@ -154,6 +175,7 @@ function CreateTrip() {
   
   
     const tripData = {
+      origin: DepartureCity?.label || DepartureCity,
       destination: place?.label || place,
       travelers: {
         count: numberOfPeople?.value,
@@ -272,7 +294,7 @@ function CreateTrip() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Which Moroccan city interests you?
             </label>
-            <div className="relative ">
+            <div className="relative">
               <GooglePlacesAutocomplete
                 apiKey="AIzaSyAeiInK3UvyBWonodEd0HswfhQ5WFhCvNQ"
                 apiOptions={{ language: 'en' }}
@@ -280,24 +302,50 @@ function CreateTrip() {
                 selectProps={{
                   value: place,
                   onChange: (option) => {
-                    setIsLoading(true);
+                    setIsDestinationLoading(true);
                     setPlace(option);
                     console.log('Selected place:', option);
                   },
                   styles: commonInputStyles,
                   placeholder: 'Discover Marrakech, Fes, Casablanca, and more...',
-                  isLoading,
+                  isLoading: isDestinationLoading,
                   onInputChange: handleDestinationChange,
                   components: {
                     DropdownIndicator: () => null,
                     IndicatorSeparator: () => null,
-                    LoadingIndicator: () => isLoading ? <LoadingIndicator /> : null
+                    LoadingIndicator: () => isDestinationLoading ? <LoadingIndicator /> : null
                   }
                 }}
               />
             </div>
 
             <div className="space-y-8">
+              <div>
+              <Label className="block text-sm font-medium text-gray-700 mb-2">Departure City</Label>
+              <div className="relative">
+              <GooglePlacesAutocomplete
+                apiKey="AIzaSyAeiInK3UvyBWonodEd0HswfhQ5WFhCvNQ"
+                apiOptions={{ language: 'en' }}
+                selectProps={{
+                  value: DepartureCity,
+                  onChange: (option) => {
+                    setIsDepartureLoading(true);
+                    setDepartureCity(option);
+                    console.log('Selected departure:', option);
+                  },
+                  styles: commonInputStyles,
+                  placeholder: 'From where you want to go?',
+                  isLoading: isDepartureLoading,
+                  onInputChange: handleDepartureChange,
+                  components: {
+                    DropdownIndicator: () => null,
+                    IndicatorSeparator: () => null,
+                    LoadingIndicator: () => isDepartureLoading ? <LoadingIndicator /> : null
+                  }
+                }}
+              />
+            </div>
+              </div>
               <div>
                 <Label className="block text-sm font-medium text-gray-700 mb-2">Number of people</Label>
                 <Select

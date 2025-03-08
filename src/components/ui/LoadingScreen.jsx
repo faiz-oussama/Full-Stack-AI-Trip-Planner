@@ -8,7 +8,7 @@ export default function LoadingScreen() {
             <div className="absolute top-0 left-0 w-20 h-20 rounded-full border-4 border-t-chefchaouen-blue animate-spin [animation-duration:0.6s]"></div>
           </div>
           <div className="relative">
-            <p className="text-xl font-semibold bg-gradient-to-r from-sahara-red to-chefchaouen-blue bg-clip-text text-transparent animate-pulse">
+            <p className="text-xl font-semibold bg-gradient-to-r from-sahara-red to-chefchaouen-blue bg-clip-text text-transparent">
               Loading...
             </p>
           </div>

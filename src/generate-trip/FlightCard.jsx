@@ -1,49 +1,55 @@
 import { DollarSign, Plane } from 'lucide-react';
 
 export default function FlightCard({ flight }) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-6">
-      <div className="flex justify-between items-start mb-6">
-        <div className="flex items-center space-x-3">
-          <Plane className="w-6 h-6 text-indigo-600" />
-          <div>
-            <h3 className="font-medium text-gray-900">{flight.airline}</h3>
-            <p className="text-sm text-gray-500">Flight Details</p>
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="text-lg font-semibold text-gray-900">{flight.airline}</div>
+            <div className="px-2 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-full">
+              {flight.flight_number}
+            </div>
+            <div className={`px-2 py-1 text-xs font-medium rounded-full ${
+              flight.status === 'active' 
+                ? 'bg-green-50 text-green-600' 
+                : 'bg-gray-50 text-gray-600'
+            }`}>
+              {flight.status}
+            </div>
           </div>
         </div>
-        <a
-          href={flight.bookingUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          Book Now
-        </a>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="space-y-1">
-          <p className="text-sm text-gray-500">Departure</p>
-          <p className="font-medium">{flight.departure}</p>
+  
+        <div className="mt-4 grid grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-500">Departure</p>
+            <p className="mt-1 text-lg font-semibold text-gray-900">
+              {flight.departure.airport}
+            </p>
+            <p className="text-sm text-gray-500">
+              Terminal {flight.departure.terminal || 'N/A'}
+            </p>
+            <p className="text-sm text-gray-500">
+              {new Date(flight.departure.time).toLocaleTimeString()}
+            </p>
+          </div>
+  
+          <div className="flex items-center justify-center">
+            <Plane className="w-6 h-6 text-indigo-600 transform rotate-90" />
+          </div>
+  
+          <div>
+            <p className="text-sm font-medium text-gray-500">Arrival</p>
+            <p className="mt-1 text-lg font-semibold text-gray-900">
+              {flight.arrival.airport}
+            </p>
+            <p className="text-sm text-gray-500">
+              Terminal {flight.arrival.terminal || 'N/A'}
+            </p>
+            <p className="text-sm text-gray-500">
+              {new Date(flight.arrival.time).toLocaleTimeString()}
+            </p>
+          </div>
         </div>
-        <div className="space-y-1">
-          <p className="text-sm text-gray-500">Arrival</p>
-          <p className="font-medium">{flight.arrival}</p>
-        </div>
       </div>
-
-      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-        <div className="flex items-center text-sm text-gray-500">
-          <DollarSign className="w-4 h-4 mr-1" />
-          <span>{flight.price}</span>
-        </div>
-        <button
-          className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-          onClick={() => window.open(flight.bookingUrl, '_blank')}
-        >
-          View Details →
-        </button>
-      </div>
-    </div>
-  );
+    );
 }

@@ -12,6 +12,15 @@ export default {
   ],
   theme: {
   	extend: {
+		height: {
+			'screen': '100vh',
+		  },
+		  fontSize: {
+			'7xl': '5rem',
+		  },
+		  backgroundImage: {
+			'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+		  },
 		transitionProperty: {
 			'colors': 'background-color, border-color, color, fill, stroke',
 		  },

@@ -20,6 +20,15 @@ export default function BackgroundSlideshow() {
 
   return (
     <div className="relative w-full h-full">
+      <div 
+        className="absolute inset-x-0 top-0 h-28 z-10 pointer-events-none"
+        style={{
+          background: `linear-gradient(to bottom,
+            rgba(255, 255, 255, 1) 0%,
+            rgba(255, 255, 255, 0.8) 30%,
+            rgba(255, 255, 255, 0) 80%)`
+        }}
+      />
       {images.map((image, index) => (
         <div
           key={image}
