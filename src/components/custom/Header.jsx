@@ -5,6 +5,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import SavedTrips from '@/saved-trips/viewSavedTrips';
 import {
   Dialog,
   DialogPanel
@@ -25,14 +26,13 @@ import {
   User
 } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, logoutUser } = useContext(AuthContext);
-  const navigate = useNavigate();
-   const location = useLocation();
+  const location = useLocation();
   const isHomePage = location.pathname === '/';
   const isLoginPage = location.pathname === '/login' || location.pathname === '/signup';
   // Track scroll position
@@ -92,9 +92,9 @@ export default function Header() {
                             border border-indigo-100/20">
                   {[
                     { to: "/", label: "Home" },
-                    { to: "/payment", label: "Payment" },
-                    { to: "/analytics", label: "Analytics" },
-                    { to: "/education", label: "Education" }
+                    { to: "/explore", label: "Explore" },
+                    { to: "/itineraries", label: "Itineraries" },
+                    { to: "/about", label: "About" }
                   ].map((link) => (
                     <Link
                       key={link.label}
@@ -232,11 +232,11 @@ export default function Header() {
                                 <span>Your Profile</span>
                               </button>
                               
-                              <button className="flex items-center space-x-2 px-2 py-2 text-sm text-slate-600 
+                              <Link to="/saved-trips" className="flex items-center space-x-2 px-2 py-2 text-sm text-slate-600 
                                               hover:text-indigo-600 hover:bg-indigo-50/50 rounded-lg transition-colors">
                                 <Bookmark className="h-4 w-4" />
                                 <span>Saved Trips</span>
-                              </button>
+                              </Link>
                               
                               <button className="flex items-center space-x-2 px-2 py-2 text-sm text-slate-600 
                                               hover:text-indigo-600 hover:bg-indigo-50/50 rounded-lg transition-colors">

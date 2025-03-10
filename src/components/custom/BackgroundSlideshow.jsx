@@ -8,7 +8,7 @@ const images = [
 ];
 
 export default function BackgroundSlideshow() {
-  const [currentImage, setCurrentImage] = useState(0);
+  const [currentImage, setCurrentImage] = useState(1);
 
   useEffect(() => {
     const interval = setInterval(() => {

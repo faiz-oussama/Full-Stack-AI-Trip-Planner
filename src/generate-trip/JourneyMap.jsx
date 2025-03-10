@@ -1,10 +1,10 @@
-import { GoogleMap, LoadScript, Marker, Polyline } from '@react-google-maps/api';
+import { useJsApiLoader,GoogleMap, LoadScript, Marker, Polyline } from '@react-google-maps/api';
 import { format } from 'date-fns';
 import { motion, useAnimation } from 'framer-motion';
 import { Calendar, MapPin } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyCNAmSO7Y05AWRDwKcmtvHXkQKgFGpVniQ';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const libraries = ['geometry', 'places'];
 const defaultCenter = { lat: 31.7917, lng: -7.0926 };
 const mapContainerStyle = {

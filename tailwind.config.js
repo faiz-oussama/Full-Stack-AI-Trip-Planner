@@ -79,10 +79,16 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			}
+  		},
+  		textShadow: {
+  			'sm': '0 1px 2px rgba(0, 0, 0, 0.3)',
+  			'lg': '0 2px 4px rgba(0, 0, 0, 0.5)',
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate"),
+  plugins: [
+    require('tailwindcss-textshadow'),
+    require("tailwindcss-animate"),
     flowbite.plugin(),
   ],
 }

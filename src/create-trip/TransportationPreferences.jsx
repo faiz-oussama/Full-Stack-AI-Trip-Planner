@@ -40,7 +40,6 @@ export default function TransportationPreferences({ onTransportationSelect }) {
       [modeName]: value
     };
     setSelectedModes(newModes);
-    
     onTransportationSelect({
       transportModes: newModes,
       routePreference

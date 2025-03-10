@@ -2,7 +2,7 @@ import LoadingScreen from '@/components/ui/LoadingScreen';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Banknote, Building2, Calendar, Car, Clock, MapPin, Plane, Train, Utensils } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState , useContext} from 'react';
 import { Link } from 'react-router-dom';
 import { fetchCityImage } from '../utils/fetchCityImage';
 import AttractionCard from './AttractionCard';
@@ -10,11 +10,85 @@ import DayPlan from './DayPlan';
 import HotelCard from './HotelCard';
 import JourneyMap from './JourneyMap';
 import MealCard from './MealCard';
+import { AuthContext } from '@/auth/AuthProvider';
+import axios from 'axios';
+import { useLocation } from 'react-router-dom';
 
-
-export default function TripPlanDisplay({ tripPlan }) {
+export default function TripPlanDisplay(props) {
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { user } = useContext(AuthContext);;
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const location = useLocation();
+
+  const { tripPlan, savedTrip } = location.state || {};
+
+  console.log(savedTrip)
+  const handleSaveTrip = async () => {
+    if (!user) {
+      // Handle not logged in case
+      alert("Please log in to save this trip");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    
+    try {
+      // Log the data being sent
+      console.log('Saving trip with data:', {
+        tripData: tripPlan,
+        userId: user.uid,
+        email: user.email
+      });
+      
+      // Make sure the backend URL is correct and accessible
+      const response = await axios.post('http://localhost:5000/save-trip', {
+        tripData: tripPlan,
+        userId: user.uid,
+        email: user.email
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          // Add any auth headers if needed
+        },
+        // Increase timeout for large payloads
+        timeout: 10000
+      });
+      
+      console.log('Trip saved successfully:', response.data);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      
+    } catch (error) {
+      console.error('Error saving trip:', error);
+      
+      // More detailed error logging
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        setSaveError(`Server error: ${error.response.status} - ${error.response.data.error || 'Unknown error'}`);
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('No response received:', error.request);
+        setSaveError('No response from server. Please check if the server is running.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error message:', error.message);
+        setSaveError(`Error: ${error.message}`);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+
+
+
 
   useEffect(() => {
     async function loadCityImage() {
@@ -149,7 +223,7 @@ export default function TripPlanDisplay({ tripPlan }) {
                   </div>
                 </div>
               </motion.div>
-              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>    {/* Share Button with Animation */}
+              {!savedTrip && (<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>    {/* Share Button with Animation */}
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -158,15 +232,28 @@ export default function TripPlanDisplay({ tripPlan }) {
                       repeat: Infinity,
                       ease: "easeInOut"
                     }}
-                    className="px-6 py-2.5 rounded-2xl text-sm font-medium
-                            bg-gradient-to-r from-violet-600 to-indigo-600
+                    onClick={handleSaveTrip}
+                    disabled={isSaving}
+                    className={`px-6 py-2.5 rounded-2xl text-sm font-medium
+                            ${!isSaving ? 'bg-gradient-to-r from-violet-600 to-indigo-600' : 'bg-gray-400' }
                             text-white
-                            transition-all duration-300"
+                            transition-all duration-300`}
                   >
-                    Share Trip
+                    Save Trip
                   </motion.button>
-                </motion.div>
+                </motion.div>)}
               </div>
+              {saveSuccess && (
+                <div className="mt-4 p-3 bg-green-100 text-green-800 rounded-lg">
+                  Trip saved successfully!
+                </div>
+              )}
+              
+              {saveError && (
+                <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-lg">
+                  Error: {saveError}
+                </div>
+              )}
           </nav>
 
           {/* Hero Content */}

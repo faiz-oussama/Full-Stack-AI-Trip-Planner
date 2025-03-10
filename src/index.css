@@ -139,10 +139,6 @@ html {
   --tw-gradient-stops: theme(colors.white), theme(colors.white) 60%, transparent;
 }
 
-/* Improved typography spacing */
-.tracking-tight {
-  letter-spacing: -0.025em;
-}
 
 .leading-relaxed {
   line-height: 1.75;
@@ -208,3 +204,20 @@ html {
   border-radius: 50%;
   animation: pulse 2s ease-out infinite;
 }
+
+/* Add these text shadow utilities */
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.text-shadow-lg {
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* For the main heading, add this more dramatic effect */
+
+/* Enhance the sahara-red text with a subtle glow */
+.text-sahara-red {
+  text-shadow: 0 0 10px rgba(230, 57, 70, 0.3);
+}
+

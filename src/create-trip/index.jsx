@@ -214,8 +214,6 @@ function CreateTrip() {
       }
     };
   
-    // Log the data being sent
-    console.log('Sending trip data:', tripData);
   
     try {
       const response = await fetch('http://localhost:5000/generate-trip', {
@@ -226,8 +224,6 @@ function CreateTrip() {
         body: JSON.stringify(tripData)
       });
   
-      // Log the response status
-      console.log('Response status:', response.status);
   
       if (!response.ok) {
         const errorData = await response.json();
@@ -296,7 +292,7 @@ function CreateTrip() {
             </label>
             <div className="relative">
               <GooglePlacesAutocomplete
-                apiKey="AIzaSyAeiInK3UvyBWonodEd0HswfhQ5WFhCvNQ"
+                apiKey={import.meta.env.VITE_GOOGLE_PLACES_API_KEY}
                 apiOptions={{ language: 'en' }}
                 autocompletionRequest={searchOptions}
                 selectProps={{
@@ -324,7 +320,7 @@ function CreateTrip() {
               <Label className="block text-sm font-medium text-gray-700 mb-2">Departure City</Label>
               <div className="relative">
               <GooglePlacesAutocomplete
-                apiKey="AIzaSyAeiInK3UvyBWonodEd0HswfhQ5WFhCvNQ"
+                apiKey={import.meta.env.VITE_GOOGLE_PLACES_API_KEY}
                 apiOptions={{ language: 'en' }}
                 selectProps={{
                   value: DepartureCity,
@@ -440,6 +436,7 @@ function CreateTrip() {
                       </div>
                   </div>
                   <TransportationPreferences onTransportationSelect={handleTransportationSelection} />
+                  
 
 
                   {/* Fourth Section: Accommodation Preferences */}

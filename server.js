@@ -1,18 +1,34 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
 import cors from "cors";
+import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import { fetchPlacePhoto } from "./src/utils/fetchPlacePhoto.js";
-
+import mongoose from 'mongoose';
+import placeRoutes from "./src/utils/placeRoutes.js"
+import { saveTrip, getTripsByUser, getTripById, updateTrip, deleteTrip } from './src/saved-trips/TripService.js';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:5000'],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
 const genAI = new GoogleGenerativeAI("AIzaSyBAfh5HVRuUehApbjOltLKVwFULDOC2QLA");
 
+app.use('/api', placeRoutes);
+
+mongoose.connect("mongodb+srv://faizouss123:k7jsNQm3B9kpST8F@cluster0.ypapm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+.then(() => {
+    console.log("connected")
+})
+.catch((err) => {
+    console.log("failed", err)
+})
 function sanitizeJSONString(str) {
     return str
         .replace(/'/g, '"')
@@ -64,6 +80,20 @@ app.post("/generate-trip", async (req, res) => {
             "budget": {
             "level": "${budget.level}",
             "currency": "MAD"
+            },
+            "transportation" : {
+            "modes" : "${transportation.modes}",
+            "routePreference" : "${transportation.routePreference}",
+            },
+            "accommodation" : {
+            "type" : "${accommodation.type}",
+            "rating" : "${accommodation.rating}",
+            "desired amenities" : "${accommodation.amenities}"
+            },
+            "activities" : {
+            "interests" : "${activities.interests}",
+            "pace" : "${activities.pace}",
+            "schedule" : "${activities.schedule.specialRequirements}"
             }
         
         Also include the flight details for each flight option from the origin to the destination.
@@ -166,7 +196,7 @@ app.post("/generate-trip", async (req, res) => {
         - Meal recommendations
         - Estimated costs        
 
-        Return ONLY a valid JSON string without any additional text or formatting . just a directly response with a JSON object.`;
+        Return ONLY a valid JSON string without any additional text or formatting . just a directly response with a JSON object. And stick to the requirements i mentioned`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const result = await model.generateContent(prompt);
@@ -175,8 +205,6 @@ app.post("/generate-trip", async (req, res) => {
         rawResponse = rawResponse
             .replace(/```json\n|\n```/g, '')
             .trim();
-
-        console.log("Raw response length:", rawResponse.length);
         
         const tripPlan = parseAndValidateJSON(rawResponse);
 
@@ -232,5 +260,98 @@ app.post("/generate-trip", async (req, res) => {
     }
 });
 
+
+
+
+
+
+app.post("/save-trip", async (req, res) => {
+    try {
+      const { tripData, userId, email } = req.body;
+      
+      if (!tripData || !userId || !email) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Missing required fields: tripData, userId, and email are required" 
+        });
+      }
+      
+      const tripId = await saveTrip(tripData, userId, email);
+      
+      res.json({
+        success: true,
+        data: { tripId },
+        message: "Trip saved successfully"
+      });
+    } catch (error) {
+      console.error("Error saving trip:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to save trip",
+        details: error.message
+      });
+    }
+  });
+  
+  // Get user trips
+  app.get("/user-trips/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const trips = await getTripsByUser(userId);
+      
+      res.json({
+        success: true,
+        data: trips,
+        message: "Trips retrieved successfully"
+      });
+    } catch (error) {
+      console.error("Error retrieving trips:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to retrieve trips",
+        details: error.message
+      });
+    }
+  });
+
+  // Delete trip
+app.delete("/trip/:tripId", async (req, res) => {
+    try {
+      const { tripId } = req.params;
+      const success = await deleteTrip(tripId);
+      
+      if (!success) {
+        return res.status(404).json({
+          success: false,
+          error: "Trip not found or not deleted"
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Trip deleted successfully"
+      });
+    } catch (error) {
+      console.error("Error deleting trip:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to delete trip",
+        details: error.message
+      });
+    }
+  });
+
+
+
+
+
+
+
+
+
+
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+

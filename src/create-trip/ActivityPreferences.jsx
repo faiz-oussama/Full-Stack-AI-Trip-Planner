@@ -51,7 +51,8 @@ export default function ActivityPreferences({ onActivitySelect }) {
       schedule: {
         restDays: rest,
         specialRequirements: requirements
-      }
+      },
+      requirements,
     });
   };
 

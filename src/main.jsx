@@ -11,7 +11,9 @@ import Layout from './components/custom/Layout'
 import NoHeaderLayout from './components/custom/NoHeaderLayout'
 import CreateTrip from './create-trip/index.jsx'
 import ResultsPage from './generate-trip/ResultsPage.jsx'
+import { DatabaseTest } from './components/DatabaseTest'
 import './index.css'
+import SavedTrips from './saved-trips/viewSavedTrips'
 
 const router = createBrowserRouter([
   {
@@ -23,6 +25,11 @@ const router = createBrowserRouter([
         </NoHeaderLayout>
       </PrivateRoute>
     ),
+  },
+  {
+    path: '/DbTest',
+    element: <DatabaseTest />
+
   },
   
   {
@@ -40,6 +47,12 @@ const router = createBrowserRouter([
         path: '/create-trip',
         element: <PrivateRoute>
                     <CreateTrip />
+                </PrivateRoute>
+      },
+      {
+        path: '/saved-trips',
+        element: <PrivateRoute>
+                    <SavedTrips />
                 </PrivateRoute>
       },
       {
@@ -67,7 +80,8 @@ const router = createBrowserRouter([
       {
         path: '/signin',
         element: <div>Sign In Page</div>,
-      }
+      },
+      
     ]
   }
 ]);
