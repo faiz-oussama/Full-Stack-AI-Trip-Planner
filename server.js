@@ -1,13 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
 import cors from "cors";
-import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
-import { fetchPlacePhoto } from "./src/utils/fetchPlacePhoto.js";
 import mongoose from 'mongoose';
-import placeRoutes from "./src/utils/placeRoutes.js"
-import { saveTrip, getTripsByUser, getTripById, updateTrip, deleteTrip } from './src/saved-trips/TripService.js';
+import { deleteTrip, getTripsByUser, saveTrip } from './src/saved-trips/TripService.js';
+import { fetchPlacePhoto } from "./src/utils/fetchPlacePhoto.js";
+import placeRoutes from "./src/utils/placeRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -96,8 +95,6 @@ app.post("/generate-trip", async (req, res) => {
             "schedule" : "${activities.schedule.specialRequirements}"
             }
         
-        Also include the flight details for each flight option from the origin to the destination.
-
         Please provide a detailed plan in JSON format with the following structure:
         "transportation": {
                 "selectedModes": ${JSON.stringify(transportation.modes)},
@@ -147,11 +144,19 @@ app.post("/generate-trip", async (req, res) => {
                         "time": "",
                         "activity": "",
                         "location": "",
+                         "activity location coordinates": {
+                          "latitude": 0,
+                          "longitude": 0
+                          },
                         "transport": "",
                         "cost": ""
                         }],
                     "meals": [{
                         "restaurant": "",
+                         "coordinates of restaurant": {
+                          "latitude": 0,
+                          "longitude": 0
+                          },
                         "mealType": "",
                         "location": "",
                         "time": "",
@@ -160,14 +165,11 @@ app.post("/generate-trip", async (req, res) => {
                         "recommendedDishes": [],
                         "priceRange": "",
                         "imageUrl": "" (keep it empty, not required)
-                    }]
+                    }],
+                    "description": "",
+                    "date": "",
+                    "weather": ""
             }],
-            "bestTimeToVisit": {
-                "season": "",
-                "months": [],
-                "weather": "",
-                "crowdLevel": ""
-            }
             }
 
         Include for each hotel option:
@@ -196,7 +198,11 @@ app.post("/generate-trip", async (req, res) => {
         - Meal recommendations
         - Estimated costs        
 
-        Return ONLY a valid JSON string without any additional text or formatting . just a directly response with a JSON object. And stick to the requirements i mentioned`;
+        in the tripDetails dont forget to mention the origin of the trip
+        Return ONLY a valid JSON string without any additional text or formatting . just a directly response with a JSON object. And stick to the requirements i mentioned, dont forget the  "coordinates": {
+                "latitude": ,
+                "longitude": 
+                } for each location, restaurant or activity mentioned.`;
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const result = await model.generateContent(prompt);

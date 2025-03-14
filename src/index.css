@@ -221,3 +221,111 @@ html {
   text-shadow: 0 0 10px rgba(230, 57, 70, 0.3);
 }
 
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .snap-x {
+    scroll-snap-type: x mandatory;
+  }
+  
+  .snap-center {
+    scroll-snap-align: center;
+  }
+  
+  .highlight-pulse {
+    animation: highlight-pulse 2s ease-in-out;
+  }
+  
+  @keyframes highlight-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    50% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0.2); }
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Custom popup styling */
+  .leaflet-popup-content-wrapper {
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 0;
+  }
+  
+  .leaflet-popup-content {
+    margin: 0;
+    line-height: 1.4;
+  }
+  
+  .leaflet-popup-tip {
+    background-color: white;
+  }
+  
+  .custom-div-icon {
+    background: none;
+    border: none;
+  }
+  .marker-label {
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 4px 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: opacity 0.2s ease;
+    opacity: 0;
+  }
+  
+  .marker-label.visible {
+    opacity: 1;
+  }
+  
+  .gm-style-iw {
+    padding: 0 !important;
+    border-radius: 12px !important;
+  }
+  
+  .gm-style-iw-d {
+    overflow: hidden !important;
+  }
+  
+  .daily-route {
+    transition: stroke-opacity 0.3s ease;
+  }
+  
+  .daily-route:hover {
+    stroke-opacity: 1 !important;
+    stroke-width: 5px !important;
+  }
+  
+  .gm-style-iw {
+    padding: 0 !important;
+    border-radius: 12px !important;
+  }
+  
+  .gm-style-iw button {
+    top: 0 !important;
+    right: 0 !important;
+  }
+  
+  .gm-style-iw-d {
+    overflow: hidden !important;
+    max-height: none !important;
+  }
+  
+  /* Show label on hover */
+  .gm-style .gm-style-iw-c:hover .marker-label {
+    display: block;
+  }

@@ -5,7 +5,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import SavedTrips from '@/saved-trips/viewSavedTrips';
 import {
   Dialog,
   DialogPanel
@@ -93,7 +92,7 @@ export default function Header() {
                   {[
                     { to: "/", label: "Home" },
                     { to: "/explore", label: "Explore" },
-                    { to: "/itineraries", label: "Itineraries" },
+                    { to: "/saved-trips", label: "My Itineraries" },
                     { to: "/about", label: "About" }
                   ].map((link) => (
                     <Link

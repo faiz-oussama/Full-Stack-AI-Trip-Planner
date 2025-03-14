@@ -1,18 +1,20 @@
+import { AuthContext } from '@/auth/AuthProvider';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import axios from 'axios';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Banknote, Building2, Calendar, Car, Clock, MapPin, Plane, Train, Utensils } from 'lucide-react';
-import { useEffect, useState , useContext} from 'react';
-import { Link } from 'react-router-dom';
+import { useContext, useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { fetchCityImage } from '../utils/fetchCityImage';
 import AttractionCard from './AttractionCard';
 import DayPlan from './DayPlan';
+import FlightSearchResults from './FlightSearchResults';
 import HotelCard from './HotelCard';
 import JourneyMap from './JourneyMap';
 import MealCard from './MealCard';
-import { AuthContext } from '@/auth/AuthProvider';
-import axios from 'axios';
-import { useLocation } from 'react-router-dom';
+import TripMapModal from './TripMapModal';
+
 
 export default function TripPlanDisplay(props) {
   const [backgroundImage, setBackgroundImage] = useState(null);
@@ -22,6 +24,7 @@ export default function TripPlanDisplay(props) {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const location = useLocation();
+  const [mapModalOpen, setMapModalOpen] = useState(false);
 
   const { tripPlan, savedTrip } = location.state || {};
 
@@ -44,7 +47,6 @@ export default function TripPlanDisplay(props) {
         email: user.email
       });
       
-      // Make sure the backend URL is correct and accessible
       const response = await axios.post('http://localhost:5000/save-trip', {
         tripData: tripPlan,
         userId: user.uid,
@@ -178,22 +180,23 @@ export default function TripPlanDisplay(props) {
         {/* Content Container */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           {/* Navigation Bar */}
-          <nav className="flex justify-between items-center">
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+          <nav className="z-10 flex justify-between items-center">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="relative z-60"
+          >
+            <Link 
+              to="/create-trip" 
+              className="group inline-flex items-center px-5 py-2.5 rounded-xl
+                        bg-white/80 backdrop-blur-sm border border-slate-200
+                        text-slate-700 shadow-sm hover:shadow-md
+                        transition-all duration-300"
             >
-              <Link 
-                to="/create-trip" 
-                className="group inline-flex items-center px-5 py-2.5 rounded-xl
-                          bg-white/80 backdrop-blur-sm border border-slate-200
-                          text-slate-700 shadow-sm hover:shadow-md
-                          transition-all duration-300"
-              >
-                <ArrowLeft className="w-5 h-5 mr-2 transition-transform group-hover:-translate-x-1" />
-                <span className="font-medium">Back to Planning</span>
-              </Link>
-            </motion.div>
+              <ArrowLeft className="w-5 h-5 mr-2 transition-transform group-hover:-translate-x-1" />
+              <span className="font-medium">Back to Planning</span>
+            </Link>
+          </motion.div>
 
             <div className="flex items-center space-x-4">
               <motion.div
@@ -267,7 +270,7 @@ export default function TripPlanDisplay(props) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
               className="inline-flex items-center px-5 py-3 rounded-full
-                        bg-white/80 backdrop-blur-sm border border-indigo-100 mb-12
+                        bg-white/80 backdrop-blur-sm border border-indigo-100 mb-12 mt-10
                         shadow-xl shadow-indigo-500/5 hover:shadow-indigo-500/10
                         transition-all duration-300"
             >
@@ -355,37 +358,206 @@ export default function TripPlanDisplay(props) {
 
           <TabPanels>
             {/* Enhanced Itinerary Panel */}
-            <TabPanel>
-              <div className="relative space-y-8 before:absolute before:left-[15px] before:top-0 before:bottom-0 before:w-0.5 before:bg-indigo-100">
-              {tripPlan.dailyPlan.map((day, dayIndex) => (
-                <motion.div
-                  key={dayIndex}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: dayIndex * 0.1 }}
-                  className="relative pl-10"
-                >
-                  <div className="absolute left-0 flex items-center justify-center w-8 h-8 bg-indigo-600 rounded-full -translate-x-[13px]">
-                    <span className="text-sm font-medium text-white">{day.day}</span>
-                  </div>
-                  <DayPlan day={day} />
-                  <div className="border-t border-gray-100 pt-4 mt-6">
-                    <div className="flex items-center mb-3">
-                      <Utensils className="w-5 h-5 text-indigo-600 mr-2" />
-                      <h4 className="font-medium">Meals</h4>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {day.meals.map((meal, mealIndex) => (
-                        <MealCard 
-                          key={`${dayIndex}-${mealIndex}`} 
-                          meal={meal} 
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+            <TabPanel>  
+              {/* Day Plans Content Area with Enhanced Visual Elements */}
+              <div className="relative">
+                {/* Enhanced decorative elements */}
+                <div className="absolute left-0 top-10 w-40 h-40 bg-gradient-to-br from-amber-200/10 to-orange-200/5 rounded-full blur-3xl"></div>
+                <div className="absolute right-0 top-1/3 w-52 h-52 bg-gradient-to-br from-indigo-200/10 to-violet-200/5 rounded-full blur-3xl"></div>
+                <div className="absolute left-1/4 bottom-20 w-44 h-44 bg-gradient-to-br from-emerald-200/10 to-green-200/5 rounded-full blur-3xl"></div>
+
+                {/* Enhanced timeline with gradient line and smooth animations */}
+                <div className="relative space-y-16 before:absolute before:left-[15px] before:top-0 before:bottom-0 before:w-0.5 
+                              before:bg-gradient-to-b before:from-indigo-400 before:via-violet-400 before:to-purple-300">
+                  {tripPlan.dailyPlan.map((day, dayIndex) => (
+                    <motion.div
+                      id={`day-${day.day}`}
+                      key={dayIndex}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: dayIndex * 0.1 }}
+                      className="relative pl-10"
+                    >
+                      {/* Enhanced day number badge */}
+                      <div className="absolute left-0 flex items-center justify-center w-10 h-10 
+                                    bg-gradient-to-br from-indigo-500 to-violet-600 
+                                    rounded-full -translate-x-[15px] shadow-lg shadow-indigo-500/30
+                                    ring-4 ring-white z-10">
+                        <span className="text-sm font-bold text-white">{day.day}</span>
+                      </div>
+                      
+                      {/* Enhanced day header with more context */}
+                      <div className="mb-6">
+                        <div className="inline-flex items-center px-4 py-2.5 rounded-xl 
+                                      bg-white/90 backdrop-blur-sm border border-indigo-100 shadow-md">
+                          <div className="flex items-center">
+                            <Calendar className="w-5 h-5 mr-2 text-indigo-600" />
+                            <span className="text-base font-medium text-gray-800">
+                              {day.date || `Day ${day.day}`}{' '}
+                              {day.location && (
+                                <span className="text-indigo-700 font-semibold">• {day.location}</span>
+                              )}
+                            </span>
+                          </div>
+                          
+                          {/* Add day theme/mood indicator */}
+                          {day.theme && (
+                            <span className="ml-3 px-3 py-1 bg-indigo-50 text-xs font-medium text-indigo-700 rounded-full">
+                              {day.theme}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Day summary */}
+                        <div className="mt-3 ml-2">
+                          <p className="text-sm text-gray-600 max-w-3xl">
+                            {day.description}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Enhanced day plan with our improved DayPlan component */}
+                      <DayPlan day={day} />
+                      
+                      {/* Enhanced meals section with more visual appeal */}
+                      <div className="mt-10 pt-6">
+                        <div className="mb-6">
+                          <div className="inline-flex items-center px-6 py-3 rounded-xl 
+                                        bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 shadow-sm">
+                            <Utensils className="w-5 h-5 text-amber-600 mr-3" />
+                            <h4 className="font-medium text-amber-800 text-lg">Culinary Experiences</h4>
+                          </div>
+                        </div>
+                        
+                        {/* Enhanced meal cards grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {day.meals.map((meal, mealIndex) => (
+                            <motion.div
+                              key={`${dayIndex}-${mealIndex}`}
+                              whileHover={{ 
+                                y: -6, 
+                                scale: 1.02,
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                              }}
+                              transition={{ duration: 0.2 }}
+                              className="transform-gpu"
+                            >
+                              <MealCard meal={meal} />
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Enhanced day separator with animation */}
+                      {dayIndex < tripPlan.dailyPlan.length - 1 && (
+                        <motion.div 
+                          className="absolute left-[15px] bottom-[-24px] transform -translate-x-1/2 z-0"
+                          animate={{ 
+                            opacity: [0.5, 1, 0.5],
+                            y: [0, 5, 0]
+                          }}
+                          transition={{
+                            repeat: Infinity,
+                            duration: 2,
+                            ease: "easeInOut"
+                          }}
+                        >
+                          <div className="w-0.5 h-16 bg-gradient-to-b from-indigo-300 via-indigo-200 to-transparent"></div>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
               </div>
+              
+              {/* Enhanced interactive summary footer */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-16 p-8 bg-gradient-to-br from-indigo-50 via-violet-50/50 to-indigo-50/30 rounded-2xl border border-indigo-100 shadow-lg"
+              >
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                  <div>
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-700 to-violet-700 bg-clip-text text-transparent mb-2">
+                      Your {tripPlan.tripDetails.duration.days}-Day {tripPlan.tripDetails.destination.split(',')[0]} Journey
+                    </h3>
+                    <p className="text-indigo-700/70 text-sm">
+                      <span className="font-medium text-indigo-800">
+                        {tripPlan.dailyPlan.reduce((acc, day) => acc + (day.activities?.length || 0), 0)} Activities
+                      </span> across {tripPlan.tripDetails.destination} including
+                      <span className="font-medium text-indigo-800"> {
+                        [...new Set(tripPlan.dailyPlan.flatMap(day => 
+                          day.activities?.map(a => a.location) || []
+                        ))].length
+                      } unique locations</span>
+                    </p>
+                    
+                    {/* Add trip statistics */}
+                    <div className="mt-4 flex flex-wrap gap-4">
+                      <div className="px-3 py-2 bg-white/70 backdrop-blur-sm rounded-lg border border-indigo-50 shadow-sm flex items-center">
+                        <div className="p-1.5 bg-violet-100 rounded-md mr-2">
+                          <Utensils className="w-4 h-4 text-violet-600" />
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          <span className="font-semibold text-violet-700">{
+                            tripPlan.dailyPlan.reduce((acc, day) => acc + (day.meals?.length || 0), 0)
+                          }</span> Meals
+                        </span>
+                      </div>
+                      
+                      <div className="px-3 py-2 bg-white/70 backdrop-blur-sm rounded-lg border border-indigo-50 shadow-sm flex items-center">
+                        <div className="p-1.5 bg-indigo-100 rounded-md mr-2">
+                          <Building2 className="w-4 h-4 text-indigo-600" />
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          <span className="font-semibold text-indigo-700">{tripPlan.accommodation?.hotels?.length || 0}</span> Hotels
+                        </span>
+                      </div>
+                      
+                      <div className="px-3 py-2 bg-white/70 backdrop-blur-sm rounded-lg border border-indigo-50 shadow-sm flex items-center">
+                        <div className="p-1.5 bg-sky-100 rounded-md mr-2">
+                          <MapPin className="w-4 h-4 text-sky-600" />
+                        </div>
+                        <span className="text-sm text-gray-700">
+                          <span className="font-semibold text-sky-700">{tripPlan.attractions?.length || 0}</span> Attractions
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Enhanced action buttons */}
+                  <div className="flex items-center space-x-4">
+                    <motion.button
+                      whileHover={{ scale: 1.04, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="px-5 py-2.5 bg-white rounded-xl border border-indigo-200 text-indigo-600 
+                              text-sm font-medium shadow-sm hover:shadow-md hover:border-indigo-300
+                              transition-all duration-300 flex items-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Download Itinerary
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.04, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setMapModalOpen(true)}
+                      className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl 
+                              text-white text-sm font-medium shadow-md hover:shadow-lg hover:shadow-indigo-500/20
+                              transition-all duration-300 flex items-center"
+                    >
+                      <MapPin className="w-4 h-4 mr-2" />
+                      View on Map
+                    </motion.button>
+                  </div>
+                </div>
+                <TripMapModal 
+                  isOpen={mapModalOpen} 
+                  onClose={() => setMapModalOpen(false)} 
+                  tripPlan={tripPlan}
+                />
+              </motion.div>
             </TabPanel>
 
             {/* Accommodations Panel */}
@@ -410,103 +582,126 @@ export default function TripPlanDisplay(props) {
                   />
                 </div>
 
+                {/* Real Flight Search Results */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-6">Flight Options</h3>
+                  <FlightSearchResults 
+                    origin={tripPlan.tripDetails.origin}
+                    destination={tripPlan.tripDetails.destination}
+                  />
+                </div>
+
                 {/* Transportation Options */}
-                <div className="grid gap-6">
-                  {[
-                    {
-                      icon: <Plane className="w-6 h-6" />,
-                      mode: "Flight",
-                      duration: "2h 15m",
-                      price: "€150-250",
-                      advantages: ["Fastest option", "Direct routes available"],
-                      disadvantages: ["Higher cost", "Airport transfers needed"],
-                      bgColor: "bg-gradient-to-br from-sky-50 to-indigo-50",
-                      iconColor: "text-sky-600",
-                      borderColor: "border-sky-200"
-                    },
-                    {
-                      icon: <Train className="w-6 h-6" />,
-                      mode: "Train",
-                      duration: "4h 30m",
-                      price: "€70-120",
-                      advantages: ["Scenic route", "City center to center"],
-                      disadvantages: ["Limited schedules", "Multiple stops"],
-                      bgColor: "bg-emerald-50",
-                      iconColor: "text-emerald-600",
-                      borderColor: "border-emerald-200"
-                    },
-                    {
-                      icon: <Car className="w-6 h-6" />,
-                      mode: "Car",
-                      duration: "5h 45m",
-                      price: "€90-130",
-                      advantages: ["Flexible schedule", "Door to door"],
-                      disadvantages: ["Toll roads", "Parking needed"],
-                      bgColor: "bg-amber-50",
-                      iconColor: "text-amber-600",
-                      borderColor: "border-amber-200"
-                    }
-                  ].map((option, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className={`relative group rounded-2xl border backdrop-blur-sm ${option.borderColor} ${option.bgColor} p-6 
-                                transition-all duration-300 hover:shadow-lg hover:scale-[1.02]`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className={`p-3 rounded-xl ${option.iconColor}`}>
-                            {option.icon}
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-6">Alternative Transportation</h3>
+                  <div className="grid gap-6">
+                    {[
+                      {
+                        icon: <Train className="w-6 h-6" />,
+                        mode: "Train",
+                        duration: "4h 30m",
+                        price: "€70-120",
+                        advantages: ["Scenic route", "City center to center"],
+                        disadvantages: ["Limited schedules", "Multiple stops"],
+                        bgColor: "bg-gradient-to-br from-violet-50/60 to-indigo-50",
+                        iconBgColor: "bg-gradient-to-br from-violet-500/20 to-indigo-500/20",
+                        iconColor: "text-violet-600",
+                        borderColor: "border-violet-100"
+                      },
+                      {
+                        icon: <Car className="w-6 h-6" />,
+                        mode: "Car",
+                        duration: "5h 45m",
+                        price: "€90-130",
+                        advantages: ["Flexible schedule", "Door to door"],
+                        disadvantages: ["Toll roads", "Parking needed"],
+                        bgColor: "bg-gradient-to-br from-sky-50/60 to-indigo-50",
+                        iconBgColor: "bg-gradient-to-br from-sky-500/20 to-indigo-500/20",
+                        iconColor: "text-sky-600",
+                        borderColor: "border-sky-100"
+                      }
+                    ].map((option, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className={`relative group rounded-2xl border shadow-sm backdrop-blur-sm ${option.borderColor} ${option.bgColor} p-6
+                                  overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10 hover:scale-[1.02]`}
+                      >
+                        {/* Rest of your existing code for these cards */}
+                        <div className="absolute -bottom-20 -right-20 w-48 h-48 rounded-full bg-gradient-to-tr from-indigo-500/5 to-violet-500/10 blur-2xl"></div>
+                        <div className="absolute -top-20 -left-20 w-48 h-48 rounded-full bg-gradient-to-br from-sky-500/5 to-indigo-500/10 blur-2xl"></div>
+                        
+                        <div className="relative z-10">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className={`p-3.5 rounded-xl ${option.iconBgColor} ${option.iconColor} shadow-sm`}>
+                                {option.icon}
+                              </div>
+                              <div>
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                  {option.mode}
+                                </h3>
+                                <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
+                                  <div className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1.5 text-indigo-500" />
+                                    <span>{option.duration}</span>
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Banknote className="w-4 h-4 mr-1.5 text-indigo-500" />
+                                    <span>{option.price}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <motion.button 
+                              whileHover={{ scale: 1.05 }} 
+                              whileTap={{ scale: 0.95 }}
+                              className="px-5 py-2.5 text-sm font-medium text-white rounded-xl
+                                        bg-gradient-to-r from-indigo-600 to-violet-600 shadow-md shadow-indigo-500/20
+                                        hover:shadow-lg hover:shadow-indigo-500/30 focus:outline-none 
+                                        focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300"
+                            >
+                              Book Now
+                            </motion.button>
                           </div>
-                          <div>
-                            <h3 className="text-xl font-semibold text-gray-900">
-                              {option.mode}
-                            </h3>
-                            <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
-                              <div className="flex items-center">
-                                <Clock className="w-4 h-4 mr-1" />
-                                {option.duration}
-                              </div>
-                              <div className="flex items-center">
-                                <Banknote className="w-4 h-4 mr-1" />
-                                {option.price}
-                              </div>
+
+                          <div className="mt-8 grid grid-cols-2 gap-6">
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium flex items-center text-indigo-900">
+                                <span className="w-1 h-4 bg-gradient-to-b from-indigo-400 to-violet-500 rounded-full mr-2"></span>
+                                Advantages
+                              </h4>
+                              <ul className="space-y-2.5 pl-3">
+                                {option.advantages.map((advantage, i) => (
+                                  <li key={i} className="flex items-center text-sm text-gray-700">
+                                    <span className="w-2 h-2 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full mr-2.5 shadow-sm" />
+                                    {advantage}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium flex items-center text-indigo-900">
+                                <span className="w-1 h-4 bg-gradient-to-b from-violet-400 to-indigo-500 rounded-full mr-2"></span>
+                                Considerations
+                              </h4>
+                              <ul className="space-y-2.5 pl-3">
+                                {option.disadvantages.map((disadvantage, i) => (
+                                  <li key={i} className="flex items-center text-sm text-gray-700">
+                                    <span className="w-2 h-2 bg-gradient-to-br from-amber-400 to-rose-500 rounded-full mr-2.5 shadow-sm" />
+                                    {disadvantage}
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
                           </div>
                         </div>
-                        <button className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                          Book Now
-                        </button>
-                      </div>
-
-                      <div className="mt-6 grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900 mb-2">Advantages</h4>
-                          <ul className="space-y-2">
-                            {option.advantages.map((advantage, i) => (
-                              <li key={i} className="flex items-center text-sm text-gray-600">
-                                <span className="w-1.5 h-1.5 bg-green-400 rounded-full mr-2" />
-                                {advantage}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900 mb-2">Considerations</h4>
-                          <ul className="space-y-2">
-                            {option.disadvantages.map((disadvantage, i) => (
-                              <li key={i} className="flex items-center text-sm text-gray-600">
-                                <span className="w-1.5 h-1.5 bg-red-400 rounded-full mr-2" />
-                                {disadvantage}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </TabPanel>

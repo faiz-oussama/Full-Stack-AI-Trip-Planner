@@ -1,4 +1,4 @@
-import { useJsApiLoader,GoogleMap, LoadScript, Marker, Polyline } from '@react-google-maps/api';
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { format } from 'date-fns';
 import { motion, useAnimation } from 'framer-motion';
 import { Calendar, MapPin } from 'lucide-react';
@@ -79,10 +79,15 @@ function createCurvedPath(start, end) {
   return points;
 }
 
-const mapPadding = { top: 40, right: 40, bottom: 40, left: 40 };
-
-// Update the calculateZoomLevel function for better bounds
-function calculateZoomLevel(origin, destination) {
+// Updated function to calculate bounds padding
+function calculateBoundsWithPadding(origin, destination) {
+  const bounds = new window.google.maps.LatLngBounds();
+  
+  // Add the origin and destination points
+  bounds.extend(new window.google.maps.LatLng(origin));
+  bounds.extend(new window.google.maps.LatLng(destination));
+  
+  // Calculate the distance between points
   const R = 6371; // Earth's radius in km
   const dLat = (destination.lat - origin.lat) * Math.PI / 180;
   const dLon = (destination.lng - origin.lng) * Math.PI / 180;
@@ -93,8 +98,31 @@ function calculateZoomLevel(origin, destination) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   const distance = R * c;
   
-  // Adjust zoom level based on distance with more padding
-  return Math.min(Math.floor(15 - Math.log(distance) / Math.log(2)), 5);
+  // Add padding based on distance
+  // For longer distances, we need less percentage padding
+  const paddingPercent = distance > 3000 ? 0.15 : 
+                         distance > 1000 ? 0.2 : 
+                         distance > 500 ? 0.25 : 0.3;
+  
+  // Apply padding to the bounds
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  
+  const latDiff = Math.abs(ne.lat() - sw.lat()) * paddingPercent;
+  const lngDiff = Math.abs(ne.lng() - sw.lng()) * paddingPercent;
+  
+  // Extend bounds with padding
+  bounds.extend(new window.google.maps.LatLng({
+    lat: ne.lat() + latDiff,
+    lng: ne.lng() + lngDiff
+  }));
+  
+  bounds.extend(new window.google.maps.LatLng({
+    lat: sw.lat() - latDiff,
+    lng: sw.lng() - lngDiff
+  }));
+  
+  return bounds;
 }
 
 export default function JourneyMap({ origin, destination, date, duration }) {
@@ -102,16 +130,47 @@ export default function JourneyMap({ origin, destination, date, duration }) {
   const [coordinates, setCoordinates] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [fitBoundsCalled, setFitBoundsCalled] = useState(false);
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries,
+    id: 'google-map-script' // This ensures the script is loaded only once
+  });
 
   const onMapLoad = useCallback((map) => {
     setMap(map);
   }, []);
+
+  // Effect to fit bounds when coordinates change or map loads
+  useEffect(() => {
+    if (map && coordinates?.origin && coordinates?.destination && !fitBoundsCalled) {
+      // Use the custom function to calculate bounds with padding
+      const bounds = calculateBoundsWithPadding(coordinates.origin, coordinates.destination);
+      
+      // Fit the map to these bounds
+      map.fitBounds(bounds);
+      
+      // Set flag to prevent repeated fitBounds calls
+      setFitBoundsCalled(true);
+      
+      // Optional: Add a slight delay to ensure proper rendering
+      setTimeout(() => {
+        // Check if the zoom is too close and adjust if needed
+        const currentZoom = map.getZoom();
+        if (currentZoom > 7) {
+          map.setZoom(7);
+        }
+      }, 300);
+    }
+  }, [map, coordinates, fitBoundsCalled]);
 
   useEffect(() => {
     async function getCoordinates() {
       try {
         setIsLoading(true);
         setError(null);
+        setFitBoundsCalled(false);
 
         if (!window.google) {
           throw new Error('Google Maps not loaded');
@@ -140,37 +199,10 @@ export default function JourneyMap({ origin, destination, date, duration }) {
           })
         ]);
 
-        // Calculate the center and extended bounds
-        const bounds = new window.google.maps.LatLngBounds();
-        
-        // Add padding to the bounds
-        const latPadding = Math.abs(results[1].lat - results[0].lat) * 0.3;
-        const lngPadding = Math.abs(results[1].lng - results[0].lng) * 0.3;
-        
-        bounds.extend({
-          lat: Math.min(results[0].lat, results[1].lat) - latPadding,
-          lng: Math.min(results[0].lng, results[1].lng) - lngPadding
-        });
-        
-        bounds.extend({
-          lat: Math.max(results[0].lat, results[1].lat) + latPadding,
-          lng: Math.max(results[0].lng, results[1].lng) + lngPadding
-        });
-
         setCoordinates({
           origin: results[0],
           destination: results[1]
         });
-
-        if (map) {
-          map.fitBounds(bounds);
-          
-          // Force a more zoomed out view after a delay
-          const zoomLevel = calculateZoomLevel(results[0], results[1]);
-          setTimeout(() => {
-            map.setZoom(zoomLevel);
-          }, 300);
-        }
 
       } catch (err) {
         console.error('Geocoding error:', err);
@@ -180,10 +212,10 @@ export default function JourneyMap({ origin, destination, date, duration }) {
       }
     }
 
-    if (origin && destination) {
+    if (origin && destination && isLoaded) {
       getCoordinates();
     }
-  }, [origin, destination, map]);
+  }, [origin, destination, isLoaded]);
 
   const controls = useAnimation();
   const planeControls = useAnimation();
@@ -211,7 +243,11 @@ export default function JourneyMap({ origin, destination, date, duration }) {
     }
   }, [coordinates, planeControls]);
 
-  const center = coordinates?.origin ? coordinates.origin : { lat: 0, lng: 0 };
+  const center = coordinates?.origin ? coordinates.origin : defaultCenter;
+
+  if (loadError) {
+    return <div className="p-4 bg-red-50 text-red-700 rounded-lg">Map cannot be loaded: {loadError.message}</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -226,26 +262,20 @@ export default function JourneyMap({ origin, destination, date, duration }) {
           </div>
         )}
 
-        {isLoading && (
+        {(isLoading || !isLoaded) && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
-        <LoadScript 
-          googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-          libraries={libraries}
-          loadingElement={
-            <div className="h-[300px] bg-gray-50 animate-pulse rounded-2xl" />
-          }
-        >
+        {isLoaded && (
           <GoogleMap
             mapContainerStyle={{
               ...mapContainerStyle,
               boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
             }}
-            center={(coordinates?.origin + coordinates?.destination) / 2 || defaultCenter}
-            zoom={4}
+            center={center}
+            zoom={4} // Default zoom, will be overridden by fitBounds
             onLoad={onMapLoad}
             options={{
               styles: mapStyles,
@@ -270,15 +300,7 @@ export default function JourneyMap({ origin, destination, date, duration }) {
               },
               minZoom: 2,
               maxZoom: 7, 
-              scrollwheel: true, 
-              zoomControl: true,
-              zoomControlOptions: {
-                position: window.google?.maps?.ControlPosition?.RIGHT_CENTER
-              },
-              // Add padding to viewport
-              fitBoundsParams: {
-                padding: 100
-              }
+              scrollwheel: true
             }}
           >
             {coordinates && !isLoading && (
@@ -335,7 +357,7 @@ export default function JourneyMap({ origin, destination, date, duration }) {
                     strokeColor: '#ffffff',
                     strokeWeight: 2,
                     scale: 1.5,
-                    anchor: new google.maps.Point(12, 24),
+                    anchor: new window.google.maps.Point(12, 24),
                   }}
                 />
 
@@ -349,13 +371,13 @@ export default function JourneyMap({ origin, destination, date, duration }) {
                     strokeColor: '#ffffff',
                     strokeWeight: 2,
                     scale: 1.5,
-                    anchor: new google.maps.Point(12, 24),
+                    anchor: new window.google.maps.Point(12, 24),
                   }}
                 />
               </>
             )}
           </GoogleMap>
-        </LoadScript>
+        )}
       </motion.div>
 
       {/* Journey Details */}
