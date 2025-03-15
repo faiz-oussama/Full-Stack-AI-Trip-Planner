@@ -3,61 +3,9 @@ import { format } from 'date-fns';
 import { motion, useAnimation } from 'framer-motion';
 import { Calendar, MapPin } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MAP_CONFIG, MAP_STYLES } from './mapconfig';
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-const libraries = ['geometry', 'places'];
-const defaultCenter = { lat: 31.7917, lng: -7.0926 };
-const mapContainerStyle = {
-  width: '100%',
-  height: '300px',
-  borderRadius: '1rem',
-};
 
-const mapStyles = [
-  {
-    featureType: "all",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#6c7789" }]
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [
-      { color: "#e9edf1" }
-    ]
-  },
-  {
-    featureType: "landscape",
-    elementType: "geometry",
-    stylers: [
-      { color: "#f5f5f5" }
-    ]
-  },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [
-      { color: "#ffffff" },
-      { lightness: 100 }
-    ]
-  },
-  {
-    featureType: "transit",
-    stylers: [{ visibility: "off" }]
-  },
-  {
-    featureType: "administrative",
-    elementType: "geometry.stroke",
-    stylers: [
-      { color: "#dde3ef" },
-      { weight: 1 }
-    ]
-  },
-  {
-    featureType: "poi",
-    stylers: [{ visibility: "off" }]
-  }
-];
 
 function createCurvedPath(start, end) {
   const points = [];
@@ -132,11 +80,8 @@ export default function JourneyMap({ origin, destination, date, duration }) {
   const [error, setError] = useState(null);
   const [fitBoundsCalled, setFitBoundsCalled] = useState(false);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries,
-    id: 'google-map-script' // This ensures the script is loaded only once
-  });
+  const { isLoaded, loadError } = useJsApiLoader(MAP_CONFIG);
+
 
   const onMapLoad = useCallback((map) => {
     setMap(map);
@@ -243,7 +188,7 @@ export default function JourneyMap({ origin, destination, date, duration }) {
     }
   }, [coordinates, planeControls]);
 
-  const center = coordinates?.origin ? coordinates.origin : defaultCenter;
+  const center = coordinates?.origin || { lat: 0, lng: 0 };
 
   if (loadError) {
     return <div className="p-4 bg-red-50 text-red-700 rounded-lg">Map cannot be loaded: {loadError.message}</div>;
@@ -271,14 +216,13 @@ export default function JourneyMap({ origin, destination, date, duration }) {
         {isLoaded && (
           <GoogleMap
             mapContainerStyle={{
-              ...mapContainerStyle,
               boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
             }}
             center={center}
             zoom={4} // Default zoom, will be overridden by fitBounds
             onLoad={onMapLoad}
             options={{
-              styles: mapStyles,
+              styles: MAP_STYLES,
               disableDefaultUI: true,
               backgroundColor: '#f3f4f6',
               gestureHandling: 'cooperative',
