@@ -1,11 +1,10 @@
 import { DirectionsRenderer, GoogleMap, InfoWindow, Marker, MarkerClusterer, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Camera, Eye, Filter, Layers, Loader, LocateFixed, Route, Share2, X, ZoomIn, ZoomOut } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ItineraryPanel } from './ItineraryPanel';
 import { MAP_CONFIG } from './mapconfig';
 
-// Add this before your component definition
 const getMarkerIcon = (type) => {
     // Custom SVG markers for better visibility
     const iconStyle = {
@@ -90,7 +89,6 @@ const processLocations = (tripPlan) => {
     });
   });
 
-  // Process attractions
   tripPlan?.attractions?.forEach(attraction => {
     locations.push({
       name: attraction.name,
@@ -104,9 +102,7 @@ const processLocations = (tripPlan) => {
     });
   });
 
-  // Process daily activities and meals
   tripPlan?.dailyPlan?.forEach(day => {
-    // Process activities
     day.activities?.forEach(activity => {
       if (activity.location && activity.location !== 'N/A') {
         locations.push({
@@ -136,6 +132,141 @@ const processLocations = (tripPlan) => {
   return locations;
 };
 
+// Update the createDailyActivitiesMap function to use summaryOfDay exclusively
+
+const createDailyActivitiesMap = (tripPlan) => {
+  // Create a map with day number as key and array of activities as value
+  const dailyActivitiesMap = new Map();
+  
+  if (!tripPlan?.dailyPlan) {
+    console.log("No daily plan data available");
+    return dailyActivitiesMap;
+  }
+  
+  console.log("Creating daily activities map from summaryOfDay data");
+  
+  // Process each day in the trip plan
+  tripPlan.dailyPlan.forEach((dayPlan) => {
+    const dayNum = dayPlan.day;
+    
+    // Skip days without summaryOfDay
+    if (!dayPlan.summaryOfDay) {
+      console.log(`Day ${dayNum}: No summaryOfDay data`);
+      return;
+    }
+    
+    // Convert summaryOfDay object to array of activities
+    const activities = Object.entries(dayPlan.summaryOfDay).map(([time, data]) => {
+      // Validate each entry
+      if (!data || !data.activity || !data.location) {
+        console.warn(`Invalid data for time ${time} on day ${dayNum}`);
+        return null;
+      }
+      
+      // Create a properly structured activity object
+      return {
+        name: data.activity,
+        time,
+        position: {
+          lat: parseFloat(data.location.latitude),
+          lng: parseFloat(data.location.longitude)
+        },
+        description: `${time} - ${data.activity}`,
+        day: `Day ${dayNum} - ${dayPlan.date || ''}`,
+        type: determineActivityType(data.activity),
+        sequenceNum: 0 // Will be set after sorting
+      };
+    }).filter(Boolean); // Remove any null entries
+    
+    // Sort activities by time
+    activities.sort((a, b) => {
+      const timeA = a.time.split(':').map(Number);
+      const timeB = b.time.split(':').map(Number);
+      
+      const minutesA = timeA[0] * 60 + (timeA[1] || 0);
+      const minutesB = timeB[0] * 60 + (timeB[1] || 0);
+      
+      return minutesA - minutesB;
+    });
+    
+    // Assign sequence numbers
+    activities.forEach((activity, index) => {
+      activity.sequenceNum = index + 1;
+    });
+    
+    // Store in map
+    dailyActivitiesMap.set(dayNum, activities);
+    
+    // Log activities for this day
+    console.log(`Day ${dayNum}: ${activities.length} activities`);
+    activities.forEach(activity => {
+      console.log(`  ${activity.sequenceNum}. ${activity.name} (${activity.time})`);
+    });
+  });
+  
+  return dailyActivitiesMap;
+};
+
+// Helper function to determine the activity type based on its name
+const determineActivityType = (activityName) => {
+  if (!activityName) return 'activity'; 
+  
+  const name = String(activityName).toLowerCase();
+  
+  // Hotel/Accommodation types
+  if (name.includes('hotel') || 
+      name.includes('check-in') || 
+      name.includes('check out') ||
+      name.includes('accommodation') ||
+      name.includes('riad')) {
+    return 'hotel';
+  }
+  
+  // Food-related activities
+  if (name.includes('breakfast') || 
+      name.includes('lunch') || 
+      name.includes('dinner') ||
+      name.includes('restaurant') || 
+      name.includes('café') ||
+      name.includes('cafe')) {
+    return 'restaurant';
+  }
+  
+  // Tourist attractions
+  if (name.includes('visit') || 
+      name.includes('explore') || 
+      name.includes('tour') ||
+      name.includes('tower') ||
+      name.includes('palace') || 
+      name.includes('museum') ||
+      name.includes('necropolis') || 
+      name.includes('kasbah') ||
+      name.includes('mausoleum')) {
+    return 'attraction';
+  }
+  
+  // Transportation activities
+  if (name.includes('train') || 
+      name.includes('taxi') || 
+      name.includes('transport') ||
+      name.includes('airport') || 
+      name.includes('transfer')) {
+    return 'transport';
+  }
+  
+  // Special activities/experiences
+  if (name.includes('performance') ||
+      name.includes('music') ||
+      name.includes('workshop') ||
+      name.includes('relax') ||
+      name.includes('enjoy')) {
+    return 'activity';
+  }
+  
+  // Default
+  return 'activity';
+};
+
 export default function TripMapModal({ isOpen, onClose, tripPlan }) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -155,11 +286,10 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
   const [routeCache, setRouteCache] = useState({});
   const [sequenceMarkers, setSequenceMarkers] = useState([]);
   const [fallbackPolylines, setFallbackPolylines] = useState([]);
-  const [directionRenderers, setDirectionRenderers] = useState([]);
-  const mapRef = useRef(null);
   const totalLocationsToGeocode = useRef(0);
   const directionsRendererRef = useRef(null);
   const activeRenderers = useRef([]);
+  const mapRef = useRef(null);
 
   // Load Google Maps API using shared config
   const { isLoaded, loadError } = useJsApiLoader(MAP_CONFIG);
@@ -267,23 +397,52 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
     }
   }, [geocodingQueue, isLoaded, tripPlan]);
 
-  const locations = [...geocodedLocations];
-  // Rest of your geocoding logic...
-
-  // Filter locations based on active day and filter type
-  const filteredLocations = locations.filter(location => {
-    // Filter by day if activeDay is set
-    if (activeDay && !location.day.includes(`Day ${activeDay}`)) {
-      return false;
-    }
+  // Compute locations directly from summaryOfDay
+const computeLocationsFromSummary = () => {
+  const allLocations = [];
+  
+  if (!tripPlan?.dailyPlan) return [];
+  
+  tripPlan.dailyPlan.forEach(day => {
+    if (!day.summaryOfDay) return;
     
-    // Filter by type
-    if (filterType !== 'all') {
-      return location.type === filterType;
-    }
-    
-    return true;
+    Object.entries(day.summaryOfDay).forEach(([time, data]) => {
+      if (!data || !data.activity || !data.location) return;
+      
+      allLocations.push({
+        name: data.activity,
+        description: `${time} - ${data.activity}`,
+        position: {
+          lat: parseFloat(data.location.latitude),
+          lng: parseFloat(data.location.longitude)
+        },
+        day: `Day ${day.day} - ${day.date || ''}`,
+        time,
+        type: determineActivityType(data.activity)
+      });
+    });
   });
+  
+  return allLocations;
+};
+
+// Get all locations
+const locations = computeLocationsFromSummary();
+
+// Filter locations based on active day and filter type
+const filteredLocations = locations.filter(location => {
+  // Filter by day if activeDay is set
+  if (activeDay && !location.day.includes(`Day ${activeDay}`)) {
+    return false;
+  }
+  
+  // Filter by type
+  if (filterType !== 'all') {
+    return location.type === filterType;
+  }
+  
+  return true;
+});
 
   // Handle map load
   const onMapLoad = (map) => {
@@ -332,8 +491,7 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
 
   // Handle day selection
   const handleDaySelect = (day) => {
-    const newActiveDay = activeDay === day ? null : day;
-    console.log("Selected day:", newActiveDay);
+    console.log("Selected day:", day);
     
     // Step 1: Clear all renderers
     activeRenderers.current.forEach(renderer => {
@@ -341,21 +499,28 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
     });
     activeRenderers.current = [];
     
-    // Step 2: Clear all sequence markers
+    // Step 2: Clear all routes
+    setDirectionsResponses([]);
+    setFallbackPolylines([]);
+    
+    // Step 3: Clear all sequence markers
     sequenceMarkers.forEach(item => {
-      if (item.marker) item.marker.setMap(null);
+      if (item.marker) {
+        item.marker.setMap(null);
+      }
     });
     setSequenceMarkers([]);
     
-    // Step 3: Reset state
-    setDirectionsResponses([]); // Always use array format
-    setFallbackPolylines([]);
-    
     // Step 4: Update active day
-    setActiveDay(newActiveDay);
+    setActiveDay(day);
     
     // Step 5: Toast
-    showToastMessage(newActiveDay ? `Showing Day ${newActiveDay} locations` : 'Showing all days');
+    showToastMessage(`Showing Day ${day} locations`);
+    
+    // Step 6: Calculate routes for the new day
+    setTimeout(() => {
+      calculateDailyRoutes();
+    }, 100);
   };
   
   const toggleMapType = () => {
@@ -420,6 +585,15 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
     let totalDistance = 0;
     let visitedLocations = 0;
   
+    // Check if Google Maps API and geometry library are loaded
+    if (!window.google || !window.google.maps || !window.google.maps.geometry) {
+      console.log("Google Maps Geometry library not loaded yet");
+      return {
+        totalKm: "0",
+        locations: locations.filter(loc => loc.position).length
+      };
+    }
+  
     tripPlan?.dailyPlan?.forEach(day => {
       const dayLocations = locations.filter(
         loc => loc.day.includes(`Day ${day.day}`) && loc.position
@@ -433,12 +607,19 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
   
       // Calculate distance between consecutive points
       for (let i = 1; i < dayLocations.length; i++) {
-        const prevPos = dayLocations[i - 1].position;
-        const currPos = dayLocations[i].position;
-        totalDistance += google.maps.geometry.spherical.computeDistanceBetween(
-          new google.maps.LatLng(prevPos.lat, prevPos.lng),
-          new google.maps.LatLng(currPos.lat, currPos.lng)
-        );
+        try {
+          const prevPos = dayLocations[i - 1].position;
+          const currPos = dayLocations[i].position;
+          
+          if (prevPos && currPos && window.google?.maps?.geometry) {
+            totalDistance += window.google.maps.geometry.spherical.computeDistanceBetween(
+              new window.google.maps.LatLng(prevPos.lat, prevPos.lng),
+              new window.google.maps.LatLng(currPos.lat, currPos.lng)
+            );
+          }
+        } catch (error) {
+          console.error("Error calculating distance:", error);
+        }
       }
     });
   
@@ -449,7 +630,12 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
   };
   
   // Update your trip summary card
-  const tripStats = calculateTripStats();
+  const tripStats = React.useMemo(() => {
+    if (!isLoaded || !window.google?.maps?.geometry?.spherical) {
+      return { totalKm: "0", locations: 0 };
+    }
+    return calculateTripStats();
+  }, [isLoaded, locations, tripPlan]);
 
   // Add this function to calculate routes
   const calculateRoutes = async (dayLocations, day) => {
@@ -462,7 +648,7 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
     }
     
     try {
-      const directionsService = new google.maps.DirectionsService();
+      const directionsService = new window.google.maps.DirectionsService();
       
       // Handle large number of locations - split into segments
       if (dayLocations.length > 10) {
@@ -474,14 +660,14 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
         ];
         
         const request = {
-          origin: new google.maps.LatLng(keyPoints[0].position.lat, keyPoints[0].position.lng),
-          destination: new google.maps.LatLng(keyPoints[2].position.lat, keyPoints[2].position.lng),
+          origin: new window.google.maps.LatLng(keyPoints[0].position.lat, keyPoints[0].position.lng),
+          destination: new window.google.maps.LatLng(keyPoints[2].position.lat, keyPoints[2].position.lng),
           waypoints: [{
-            location: new google.maps.LatLng(keyPoints[1].position.lat, keyPoints[1].position.lng),
+            location: new window.google.maps.LatLng(keyPoints[1].position.lat, keyPoints[1].position.lng),
             stopover: true
           }],
           optimizeWaypoints: false,
-          travelMode: google.maps.TravelMode.DRIVING
+          travelMode: window.google.maps.TravelMode.DRIVING
         };
         
         const result = await directionsService.route(request);
@@ -491,19 +677,19 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
       
       // Normal case - reasonable number of waypoints
       const waypoints = dayLocations.slice(1, -1).map(location => ({
-        location: new google.maps.LatLng(location.position.lat, location.position.lng),
+        location: new window.google.maps.LatLng(location.position.lat, location.position.lng),
         stopover: true
       }));
   
       const request = {
-        origin: new google.maps.LatLng(dayLocations[0].position.lat, dayLocations[0].position.lng),
-        destination: new google.maps.LatLng(
+        origin: new window.google.maps.LatLng(dayLocations[0].position.lat, dayLocations[0].position.lng),
+        destination: new window.google.maps.LatLng(
           dayLocations[dayLocations.length - 1].position.lat,
           dayLocations[dayLocations.length - 1].position.lng
         ),
         waypoints: waypoints,
         optimizeWaypoints: false, // Set to false for faster calculation
-        travelMode: google.maps.TravelMode.DRIVING
+        travelMode: window.google.maps.TravelMode.DRIVING
       };
   
       const result = await directionsService.route(request);
@@ -546,10 +732,11 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
                   response
                 });
                 // Update directions while processing - improves perceived performance
-                setDirectionsResponses(prev => ({
-                  key: prev.key,
-                  data: [...(prev.data || []), { day: activeDayPlan.day, response }]
-                }));
+                setDirectionsResponses(prev => {
+                  // Always treat prev as an array
+                  const prevArray = Array.isArray(prev) ? prev : [];
+                  return [...prevArray, { day: activeDayPlan.day, response }];
+                });
               }
             }
           }
@@ -576,16 +763,12 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
             if (dayLocations.length >= 2) {
               const response = await calculateRoutes(dayLocations, day.day);
               if (response && !cancelled) {
-                newDirectionsResponses.push({
-                  day: day.day,
-                  response
+                // Use array-based approach consistently
+                setDirectionsResponses(prev => {
+                  // Always treat prev as an array
+                  const prevArray = Array.isArray(prev) ? prev : [];
+                  return [...prevArray, { day: day.day, response }];
                 });
-                
-                // Incrementally update directions - gives better UX feedback
-                setDirectionsResponses(prev => ({
-                  key: prev.key,
-                  data: [...prev.data, { day: day.day, response }]
-                }));
               }
               
               // Small delay to prevent API rate limits
@@ -621,150 +804,194 @@ export default function TripMapModal({ isOpen, onClose, tripPlan }) {
   }, [isLoadingDirections]);
   
   // Update this function to properly sort locations by time and handle daily routes
-const calculateDailyRoutes = async () => {
-  if (!mapInstance || !isLoaded) {
-    console.log("Map not ready for routes");
-    return;
-  }
-  
-  console.log("Calculating routes for day:", activeDay || "all days");
-  setIsLoadingDirections(true);
-  
-  try {
-    // Clear previous markers and routes
-    sequenceMarkers.forEach(item => {
-      if (item.marker) item.marker.setMap(null);
-    });
-    setSequenceMarkers([]);
-    setDirectionsResponses([]); // Reset to empty array
-    setFallbackPolylines([]);
+  const calculateDailyRoutes = async () => {
+    if (!mapInstance || !isLoaded) {
+      console.log("Map not ready for routes");
+      return;
+    }
     
-    // Get days to process
-    const daysToProcess = activeDay 
-      ? tripPlan.dailyPlan.filter(d => d.day === activeDay)
-      : tripPlan.dailyPlan || [];
+    console.log("Calculating routes for day:", activeDay || "all days");
+    setIsLoadingDirections(true);
     
-    console.log("Processing days:", daysToProcess.map(d => d.day));
-    
-    for (const day of daysToProcess) {
-      // Get locations for this day in time order
-      const dayLocations = locations.filter(
-        loc => loc.day.includes(`Day ${day.day}`) && loc.position
-      ).sort((a, b) => {
-        // Sort by time
-        const timeA = a.description?.match(/(\d{1,2}:\d{2})/)?.[1] || '';
-        const timeB = b.description?.match(/(\d{1,2}:\d{2})/)?.[1] || '';
-        
-        const getMinutes = (timeString) => {
-          if (!timeString) return 0;
-          const [hours, minutes] = timeString.split(':').map(Number);
-          return hours * 60 + minutes;
-        };
-        
-        return getMinutes(timeA) - getMinutes(timeB);
-      });
+    try {
+      // Clear previous markers and routes
+      clearRouteVisuals();
       
-      console.log(`Day ${day.day}: Found ${dayLocations.length} locations with positions`);
+      // Create daily activities map directly from summaryOfDay
+      const dailyActivitiesMap = createDailyActivitiesMap(tripPlan);
       
-      // Only calculate route if we have enough locations
-      if (dayLocations.length >= 2) {
-        // Get cached route or calculate new one
-        const cacheKey = `day-${day.day}`;
+      // Determine which days to process
+      const daysToProcess = activeDay 
+        ? [parseInt(activeDay)]
+        : [];  // Change this to empty array to avoid showing all days
+      
+      console.log("Processing days:", daysToProcess);
+      
+      // Process each day
+      for (const dayNum of daysToProcess) {
+        const activities = dailyActivitiesMap.get(dayNum) || [];
         
-        if (routeCache[cacheKey]) {
-          console.log(`Using cached route for day ${day.day}`);
-          setDirectionsResponses(prev => [
-            ...prev, 
-            { day: day.day, response: routeCache[cacheKey] }
-          ]);
+        console.log(`Day ${dayNum}: Processing ${activities.length} activities`);
+        
+        // Skip days with insufficient activities for routes
+        if (activities.length < 2) {
+          console.log(`Day ${dayNum}: Not enough activities for route calculation`);
+          // Still add sequence labels if we have any activities
+          if (activities.length === 1) {
+            addSequenceLabels(activities, dayNum);
+          }
+          continue;
+        }
+        
+        try {
+          // Calculate route
+          const directionsService = new google.maps.DirectionsService();
+          const waypoints = activities.slice(1, -1).map(act => ({
+            location: new google.maps.LatLng(act.position.lat, act.position.lng),
+            stopover: true
+          }));
           
-          // Add sequence markers from cache
-          addSequenceLabels(dayLocations, day.day);
-        } else {
-          console.log(`Calculating new route for day ${day.day}`);
-          await createSegmentedRoute(dayLocations, day.day);
+          const result = await directionsService.route({
+            origin: new google.maps.LatLng(
+              activities[0].position.lat,
+              activities[0].position.lng
+            ),
+            destination: new google.maps.LatLng(
+              activities[activities.length - 1].position.lat,
+              activities[activities.length - 1].position.lng
+            ),
+            waypoints,
+            travelMode: google.maps.TravelMode.DRIVING,
+            optimizeWaypoints: false
+          });
+          
+          setDirectionsResponses(prev => {
+            // Always treat prev as an array
+            const prevArray = Array.isArray(prev) ? prev : [];
+            return [...prevArray, { day: dayNum, response: result }];
+          });
+        } catch (error) {
+          console.error(`Error calculating route for day ${dayNum}:`, error);
+          // Create fallback route if directions API fails
+          createFallbackRoute(activities, dayNum);
+        }
+        
+        // Add sequence labels for activities
+        addSequenceLabels(activities, dayNum);
+      }
+    } catch (error) {
+      console.error("Error in route calculation:", error);
+    } finally {
+      setIsLoadingDirections(false);
+    }
+  };
+
+  const addSequenceLabels = (activities, dayNum) => {
+    // First, clear existing markers for this specific day
+    sequenceMarkers.forEach(item => {
+      if (item.day === String(dayNum)) {
+        if (item.marker) {
+          item.marker.setMap(null);
         }
       }
-    }
-  } catch (error) {
-    console.error("Error in route calculation:", error);
-  } finally {
-    setIsLoadingDirections(false);
-  }
-};
-
-// Add this function to create labels showing the sequence
-const addSequenceLabels = (locations, day) => {
-  // First sort the locations by AM/PM and then by time
-  const sortedLocations = [...locations].sort((a, b) => {
-    // Extract time info from description
-    const timeA = a.description?.match(/(\d{1,2}:\d{2})/)?.[1] || '';
-    const timeB = b.description?.match(/(\d{1,2}:\d{2})/)?.[1] || '';
+    });
     
-    // Check for AM/PM indicators
-    const isAMA = a.description?.toLowerCase().includes('am') || false;
-    const isAMB = b.description?.toLowerCase().includes('am') || false;
-    const isPMA = a.description?.toLowerCase().includes('pm') || false; 
-    const isPMB = b.description?.toLowerCase().includes('pm') || false;
+    // Filter out removed markers from state
+    const remainingMarkers = sequenceMarkers.filter(item => item.day !== String(dayNum));
     
-    // If one is AM and one is PM, AM comes first
-    if (isAMA && isPMB) return -1;
-    if (isPMA && isAMB) return 1;
+    // Get day number as a string
+    const dayStr = String(dayNum);
     
-    // Sort by time within the same period (AM or PM)
-    const getMinutes = (timeString) => {
-      if (!timeString) return 0;
-      const [hours, minutes] = timeString.split(':').map(Number);
-      return hours * 60 + minutes;
-    };
+    console.log(`Creating ${activities.length} numbered markers for Day ${dayStr}`);
     
-    return getMinutes(timeA) - getMinutes(timeB);
-  });
-
-  // Clear existing sequence markers for this day
-  sequenceMarkers
-    .filter(item => item.day === day)
-    .forEach(item => {
-      if (item.marker) {
-        item.marker.setMap(null);
+    const newMarkers = [];
+    
+    // Track visited locations to handle multiple visits
+    const visitedLocations = new Map();
+    
+    // Create markers using pre-calculated sequence numbers
+    activities.forEach((activity) => {
+      if (!mapInstance || !activity.position) return;
+      
+      // Use sequenceNum from the object
+      const sequenceNumber = activity.sequenceNum;
+      
+      // Create a location key based on coordinates
+      const locationKey = `${activity.position.lat.toFixed(5)},${activity.position.lng.toFixed(5)}`;
+      
+      // Track visit count and calculate offset for repeat visits
+      let visitCount = visitedLocations.get(locationKey) || 0;
+      visitCount++;
+      visitedLocations.set(locationKey, visitCount);
+      
+      // Create offset for repeated visits (in a small circle pattern)
+      let offsetPosition = { ...activity.position };
+      
+      // Apply offset for subsequent visits (2nd visit onwards)
+      if (visitCount > 1) {
+        const offsetDistance = 0.0001 * visitCount; // approx 10 meters per visit
+        const offsetAngle = (visitCount - 1) * (Math.PI / 4); // 45 degree spacing
+        
+        offsetPosition = {
+          lat: activity.position.lat + offsetDistance * Math.cos(offsetAngle),
+          lng: activity.position.lng + offsetDistance * Math.sin(offsetAngle)
+        };
       }
+      
+      // Create the numbered marker at possibly offset position
+      const marker = new window.google.maps.Marker({
+        position: offsetPosition,
+        map: mapInstance,
+        label: {
+          text: `${sequenceNumber}`,
+          color: '#FFFFFF',
+          fontSize: '10px',
+          fontWeight: 'bold'
+        },
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          fillColor: getMarkerColorByType(activity.type),
+          fillOpacity: 1,
+          strokeWeight: 1,
+          strokeColor: '#FFFFFF',
+          scale: 10
+        },
+        zIndex: 1000 + sequenceNumber,
+        title: `${sequenceNumber}. ${activity.name} (${activity.time})`
+      });
+      
+      // Store reference to the marker with its day
+      newMarkers.push({ 
+        marker, 
+        day: dayStr, 
+        visitCount,
+        locationKey
+      });
     });
-  
-  setSequenceMarkers(prev => prev.filter(item => item.day !== day));
+    
+    // Update markers in state by adding new markers to remaining ones
+    setSequenceMarkers([...remainingMarkers, ...newMarkers]);
+    
+    console.log(`Created ${newMarkers.length} sequence markers for Day ${dayStr}`);
+  };
 
-  // Add new sequence markers with proper numbering
-  let sequenceNumber = 1; // Start at 1 for each day
-  
-  sortedLocations.forEach((location) => {
-    if (!mapInstance || !location.position) return;
-    
-    const marker = new window.google.maps.Marker({
-      position: location.position,
-      map: mapInstance,
-      label: {
-        text: `${sequenceNumber}`,
-        color: '#FFFFFF',
-        fontSize: '10px',
-        fontWeight: 'bold'
-      },
-      icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: '#4f46e5',
-        fillOpacity: 1,
-        strokeWeight: 0,
-        scale: 10
-      },
-      zIndex: 1000 + sequenceNumber // Higher zIndex for sequence numbers
-    });
-    
-    // Store reference to remove when day changes
-    setSequenceMarkers(prev => [...prev, { marker, day }]);
-    
-    // Increment sequence number
-    sequenceNumber++;
-  });
-};
-
+  // Helper function to get marker color by activity type
+  const getMarkerColorByType = (type) => {
+    switch (type) {
+      case 'hotel':
+        return '#06b6d4'; // cyan-500
+      case 'restaurant':
+        return '#f59e0b'; // amber-500
+      case 'attraction':
+        return '#ef4444'; // red-500
+      case 'transport':
+        return '#8b5cf6'; // violet-500
+      case 'activity':
+        return '#10b981'; // emerald-500
+      default:
+        return '#4f46e5'; // indigo-500
+    }
+  };
 // Add this function for fallback routes when directions API fails
 const createFallbackRoute = (locations, day) => {
   // Create a simple polyline connecting the points
@@ -830,10 +1057,12 @@ const createSegmentedRoute = async (locations, day) => {
           optimizeWaypoints: false
         });
         
-        // Always use array format for consistency
+        // Fixed state update to ensure we're always working with an array
         setDirectionsResponses(prev => {
           const segmentId = `${day}-segment-${i}-${Date.now()}`;
-          return [...prev, { day: segmentId, response: result }];
+          // Make sure prev is treated as an array
+          const prevArray = Array.isArray(prev) ? prev : [];
+          return [...prevArray, { day: segmentId, response: result }];
         });
       } catch (error) {
         console.error(`Error calculating route segment ${i} for day ${day}:`, error);
@@ -845,14 +1074,18 @@ const createSegmentedRoute = async (locations, day) => {
     }
   }
   
-  // Add sequence labels for the entire day
-  addSequenceLabels(locations, day);
+  // Get the actual day number from the day parameter
+  // If day is a segment ID like "3-segment-0", extract just the day number "3"
+  const dayNumber = parseInt(String(day).split('-')[0]);
+  
+  // Important: Call addSequenceLabels with the correct day number
+  // This ensures each day has its own sequence starting from 1
+  addSequenceLabels(locations, dayNumber);
 };
-
 // Replace both activeDay useEffects with this single one
 useEffect(() => {
   // Skip if map isn't loaded yet
-  if (!isLoaded || !mapInstance) return;
+  if (!isLoaded || !mapInstance || !tripPlan?.dailyPlan) return;
   
   // Clear existing renderers
   if (activeRenderers.current.length > 0) {
@@ -864,7 +1097,7 @@ useEffect(() => {
     activeRenderers.current = [];
   }
   
-  // Reset state - using array format consistently
+  // Reset state
   setDirectionsResponses([]);
   setFallbackPolylines([]);
   
@@ -872,19 +1105,48 @@ useEffect(() => {
   setTimeout(() => {
     calculateDailyRoutes();
     
-    // Fit map to show all day locations
-    const dayLocations = locations.filter(loc => 
-      activeDay ? loc.day.includes(`Day ${activeDay}`) : true
-    ).filter(loc => loc.position);
+    // Get current day summaryOfDay data to set map bounds
+    let activitiesForDay = [];
     
-    if (dayLocations.length > 0) {
+    if (activeDay) {
+      // Get active day's activities
+      const dayPlan = tripPlan.dailyPlan.find(day => day.day === activeDay);
+      if (dayPlan?.summaryOfDay) {
+        activitiesForDay = Object.entries(dayPlan.summaryOfDay)
+          .filter(([_, data]) => data.location)
+          .map(([time, data]) => ({
+            position: {
+              lat: parseFloat(data.location.latitude),
+              lng: parseFloat(data.location.longitude)
+            }
+          }));
+      }
+    } else {
+      // Get all days' activities
+      tripPlan.dailyPlan.forEach(day => {
+        if (day.summaryOfDay) {
+          const dayActivities = Object.entries(day.summaryOfDay)
+            .filter(([_, data]) => data.location)
+            .map(([time, data]) => ({
+              position: {
+                lat: parseFloat(data.location.latitude),
+                lng: parseFloat(data.location.longitude)
+              }
+            }));
+          activitiesForDay = [...activitiesForDay, ...dayActivities];
+        }
+      });
+    }
+    
+    // Set map bounds if we have activities
+    if (activitiesForDay.length > 0) {
       const bounds = new window.google.maps.LatLngBounds();
-      dayLocations.forEach(loc => bounds.extend(loc.position));
+      activitiesForDay.forEach(act => bounds.extend(act.position));
       mapInstance.fitBounds(bounds);
     }
   }, 200);
   
-}, [activeDay, isLoaded, mapInstance]);
+}, [activeDay, isLoaded, mapInstance, tripPlan]);
 
 // Add this effect to handle load errors
 useEffect(() => {
@@ -906,6 +1168,18 @@ useEffect(() => {
     }
   };
 }, []);
+
+// Add this useEffect to handle sequence marker visibility
+useEffect(() => {
+  // Hide all sequence markers that don't match the active day
+  sequenceMarkers.forEach(item => {
+    if (item.marker) {
+      // Show marker only if it matches activeDay or if no day is selected
+      const isVisibleDay = !activeDay || item.day === String(activeDay);
+      item.marker.setVisible(isVisibleDay);
+    }
+  });
+}, [activeDay, sequenceMarkers]);
 
   return (
     <AnimatePresence>
@@ -1010,10 +1284,10 @@ useEffect(() => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => setActiveDay(null)}
+                    onClick={() => handleDaySelect(1)} // Change to navigate to first day instead
                     className="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 ml-1"
                   >
-                    All
+                    Reset
                   </motion.button>
                 )}
               </motion.div>
@@ -1315,60 +1589,29 @@ useEffect(() => {
                   />
                   )}
                   {/* Daily Route Lines */}
-{Array.isArray(directionsResponses) ? (
-  directionsResponses
-    .filter(({ day }) => !activeDay || day === activeDay || day.startsWith(`${activeDay}-segment-`))
-    .map(({ day, response }, index) => (
-      <DirectionsRenderer
-        key={`dir-${activeDay || 'all'}-${day}-${index}-${Date.now()}`}
-        options={{
-          directions: response,
-          suppressMarkers: true,
-          polylineOptions: {
-            strokeColor: [
-              '#4f46e5',
-              '#7c3aed',
-              '#a855f7',
-              '#ec4899',
-              '#f43f5e',
-            ][index % 5],
-            strokeOpacity: 0.7,
-            strokeWeight: 4
-          }
-        }}
-        onLoad={(renderer) => {
-          activeRenderers.current.push(renderer);
-        }}
-      />
-    ))
-) : directionsResponses && directionsResponses.data ? (
-  // Handle legacy object format if it exists
-  directionsResponses.data
-    .filter(({ day }) => !activeDay || day === activeDay || day.startsWith(`${activeDay}-segment-`))
-    .map(({ day, response }, index) => (
-      <DirectionsRenderer
-        key={`dir-${activeDay || 'all'}-${day}-${index}-${Date.now()}`}
-        options={{
-          directions: response,
-          suppressMarkers: true,
-          polylineOptions: {
-            strokeColor: [
-              '#4f46e5',
-              '#7c3aed',
-              '#a855f7',
-              '#ec4899',
-              '#f43f5e',
-            ][index % 5],
-            strokeOpacity: 0.7,
-            strokeWeight: 4
-          }
-        }}
-        onLoad={(renderer) => {
-          activeRenderers.current.push(renderer);
-        }}
-      />
-    ))
-) : null}
+                  {Array.isArray(directionsResponses) && directionsResponses
+  .filter(({ day }) => !activeDay || day === activeDay || 
+    (activeDay && String(day).startsWith(`${activeDay}-segment-`)))
+  .map(({ day, response }, index) => (
+    <DirectionsRenderer
+      key={`dir-${day}-${index}-${Date.now()}`}
+      options={{
+        directions: response,
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: [
+            '#4f46e5', '#7c3aed', '#a855f7', '#ec4899', '#f43f5e',
+          ][index % 5],
+          strokeOpacity: 0.7,
+          strokeWeight: 4
+        }
+      }}
+      onLoad={(renderer) => {
+        activeRenderers.current.push(renderer);
+      }}
+    />
+  ))
+}
                   {/* Render fallback polylines for complex routes */}
                   {fallbackPolylines.map((polyline, index) => (
                     <Polyline

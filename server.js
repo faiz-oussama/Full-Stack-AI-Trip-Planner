@@ -28,33 +28,214 @@ mongoose.connect("mongodb+srv://faizouss123:k7jsNQm3B9kpST8F@cluster0.ypapm.mong
 .catch((err) => {
     console.log("failed", err)
 })
+
+// Replace your existing sanitizeJSONString and parseAndValidateJSON functions with these improved versions
+
 function sanitizeJSONString(str) {
-    return str
+    // Step 1: Remove code blocks if present (```json and ```)
+    let cleaned = str.replace(/```json\n|\n```/g, '').trim();
+    
+    // Step 2: Fix common JSON syntax issues
+    cleaned = cleaned
+        // Replace single quotes with double quotes
         .replace(/'/g, '"')
-        .replace(/(?:\r\n|\r|\n)/g, '') 
+        // Remove line breaks
+        .replace(/(?:\r\n|\r|\n)/g, ' ')
+        // Fix trailing commas in arrays and objects
         .replace(/,\s*([\]}])/g, '$1')
+        // Ensure property names are properly quoted
         .replace(/([{,])\s*([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+        // Replace any remaining single quotes around string values
         .replace(/:\s*'([^']*?)'/g, ':"$1"')
-        .replace(/\\/g, '\\\\')
+        // Normalize excess whitespace
         .replace(/"\s+/g, '"')
-        .replace(/\s+"/g, '"');
+        .replace(/\s+"/g, '"')
+        // Fix time format in summaryOfDay (e.g., (in 24-hour format !!!!!))
+        .replace(/"time": "", \(in 24-hour format !!!!!\)/g, '"time": ""')
+        // Fix comment in imageUrl
+        .replace(/"imageUrl": "" \(keep it empty, not required\)/g, '"imageUrl": ""');
+    
+    // Handle problematic apostrophes in addresses and other text
+    cleaned = handleApostrophesInStrings(cleaned);
+    
+    // Step 3: Check for and fix specific parsing issues
+    try {
+        JSON.parse(cleaned);
+        return cleaned; // If it parses correctly, return it
+    } catch (error) {
+        console.log("Still having JSON issues, applying additional fixes...");
+        
+        // Get error position to focus on problematic areas
+        const position = error.message.match(/position (\d+)/)?.[1];
+        
+        if (position) {
+            const problemArea = cleaned.substring(Math.max(0, parseInt(position) - 50), Math.min(cleaned.length, parseInt(position) + 50));
+            console.log(`Problem area around position ${position}: ${problemArea}`);
+            
+            // Try to fix the specific area around the error
+            cleaned = fixProblemArea(cleaned, parseInt(position));
+        }
+        
+        // Apply more aggressive fixes
+        cleaned = cleaned
+            // Fix any remaining unquoted property names
+            .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3')
+            // Remove any invalid control characters
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+            // Ensure all comments are removed (including inline ones)
+            .replace(/\/\*.*?\*\//g, '')
+            .replace(/\/\/.*/g, '')
+            // Fix specifically common patterns in your data
+            .replace(/"dailyPlan": \[{\s*"day": 1,/g, '"dailyPlan": [{"day": 1,');
+        
+        return cleaned;
+    }
+}
+
+// New helper function to fix apostrophes and quotes in string values
+function handleApostrophesInStrings(json) {
+    // Start with empty result
+    let result = '';
+    let inString = false;
+    let escapeNext = false;
+    let currentStringStart = 0;
+    
+    // Iterate through each character
+    for (let i = 0; i < json.length; i++) {
+        const char = json[i];
+        
+        // Handle escape characters
+        if (char === '\\') {
+            escapeNext = !escapeNext;
+            result += char;
+            continue;
+        }
+        
+        // If we encounter a quote that's not escaped
+        if (char === '"' && !escapeNext) {
+            if (!inString) {
+                // Starting a new string
+                inString = true;
+                currentStringStart = i;
+            } else {
+                // Ending a string
+                inString = false;
+            }
+            result += char;
+        } 
+        // If we're in a string and encounter a character that might cause problems
+        else if (inString && (char === '"' || char === "'" || char === '`')) {
+            // Replace with equivalent HTML entity or escape it
+            result += '\\' + char;
+        } else {
+            result += char;
+        }
+        
+        escapeNext = false;
+    }
+    
+    return result;
+}
+
+// New helper function to try fixing a specific problematic area
+function fixProblemArea(json, errorPosition) {
+    // Look for likely problem patterns near the error position
+    const start = Math.max(0, errorPosition - 100);
+    const end = Math.min(json.length, errorPosition + 100);
+    const problemSegment = json.substring(start, end);
+    
+    // Common patterns that cause issues
+    const fixedSegment = problemSegment
+        // Fix quotes within address strings like "Avenue d'Alger" or "Avenue d"Alger"
+        .replace(/(\w)"(\w)/g, '$1\\"$2')
+        // Fix other common patterns as needed
+        .replace(/(\d+)"/g, '$1\\"') // Fix cases like 10" (ten inches) 
+        .replace(/"(\w+)'(\w+)"/g, '"$1\\\'$2"'); // Fix apostrophes in words
+    
+    // Replace the problem segment in the full string
+    return json.substring(0, start) + fixedSegment + json.substring(end);
 }
 
 function parseAndValidateJSON(jsonString) {
+    console.log("Attempting to parse JSON...");
+    
     try {
+        // First try parsing the raw string
         return JSON.parse(jsonString);
     } catch (firstError) {
         console.log("Initial JSON parse failed, attempting cleanup...");
+        
+        // Try with our improved sanitizer
         try {
             const sanitized = sanitizeJSONString(jsonString);
             return JSON.parse(sanitized);
         } catch (secondError) {
-            throw new Error(`JSON Parse Error: ${secondError.message}\nPosition: ${secondError.position}`);
+            // If we still can't parse it, try one more aggressive approach
+            console.log("Second parse attempt failed, trying more aggressive cleaning...");
+            
+            try {
+                // Use a regex to extract what looks like JSON
+                const jsonRegex = /\{[\s\S]*\}/;
+                const match = jsonString.match(jsonRegex);
+                
+                if (match) {
+                    const extracted = match[0];
+                    const sanitized = sanitizeJSONString(extracted);
+                    return JSON.parse(sanitized);
+                }
+                
+                throw new Error("Could not extract valid JSON structure");
+            } catch (thirdError) {
+                // Log detailed information about the parse failure
+                console.error("JSON parsing failed after multiple attempts");
+                console.error("Original string sample:", jsonString.substring(0, 100) + "...");
+                
+                // Throw a more informative error
+                throw new Error(`JSON Parse Error: ${secondError.message}\nFailed to parse response from Gemini API`);
+            }
         }
     }
 }
 
+// Add this function to preprocess the API response
+
+function preprocessGeminiResponse(response) {
+    // Step 1: Extract just the JSON object part if there's any surrounding text
+    const jsonMatch = response.match(/(\{[\s\S]*\})/);
+    const jsonCandidate = jsonMatch ? jsonMatch[1] : response;
+    
+    // Step 2: Fix specific patterns that cause parsing problems
+    let processedJson = jsonCandidate
+        // Fix double quotes in addresses and place names
+        .replace(/(\w)"(\w)/g, '$1\'$2')
+        // Fix quotes within URLs
+        .replace(/"(https?:\/\/[^"]*?)"/g, function(match, url) {
+            return '"' + url.replace(/"/g, '%22') + '"';
+        })
+        // Fix inline comments in JSON
+        .replace(/"([^"]+)" \(([^)]+)\)/g, '"$1"')
+        // Fix issues with time formats
+        .replace(/"time": "([^"]+)" \([^)]+\)/g, '"time": "$1"');
+    
+    // Step 3: Look for specific problematic patterns
+    const knownProblems = [
+        { pattern: /"address":"([^"]*?)"([^"]*?)"/g, replacement: '"address":"$1\'$2"' },
+        { pattern: /"photoUrl":"([^"]*?)"([^"]*?)"/g, replacement: '"photoUrl":"$1%22$2"' },
+        { pattern: /"(\d\d:\d\d)"/g, replacement: '"$1"' }
+    ];
+    
+    for (const { pattern, replacement } of knownProblems) {
+        processedJson = processedJson.replace(pattern, replacement);
+    }
+    
+    return processedJson;
+}
+
+// Update your route handler to use the new preprocessing
+
 app.post("/generate-trip", async (req, res) => {
+    let rawResponse = null;
+    
     try {
         const { origin, destination, travelers, dates, budget, transportation, accommodation, activities } = req.body;
         
@@ -92,7 +273,7 @@ app.post("/generate-trip", async (req, res) => {
             "activities" : {
             "interests" : "${activities.interests}",
             "pace" : "${activities.pace}",
-            "schedule" : "${activities.schedule.specialRequirements}"
+            "specialRequirements" : "${activities.schedule.specialRequirements}"
             }
         
         Please provide a detailed plan in JSON format with the following structure:
@@ -141,7 +322,7 @@ app.post("/generate-trip", async (req, res) => {
             "dailyPlan": [{
                 "day": 1,
                     "activities": [{
-                        "time": "",
+                        "time": "", (in 24-hour format !!!!!),
                         "activity": "",
                         "location": "",
                          "activity location coordinates": {
@@ -168,7 +349,11 @@ app.post("/generate-trip", async (req, res) => {
                     }],
                     "description": "",
                     "date": "",
-                    "weather": ""
+                    "weather": "",
+                    "summaryOfDay": {
+                      "08:00": {activity: "Breakfast at hotel restaurant", location: {latitude: 0, longitude: 0}},
+                  },
+
             }],
             }
 
@@ -192,7 +377,9 @@ app.post("/generate-trip", async (req, res) => {
         - Recommended time to spend
         
         For daily plan:
-        - Detailed itinerary with timing
+        - for the summaryOfDay, (include everything about the day (activities, meals, etc) ranked in order of time) BUT if the place stays the same consecutively dont repeat it, it always should be a different place in between two places because i wanna plot the activities on the map, i gave an example of the format, you should change it to fit the trip plan
+        - Dont mention the departure from the origin city, just start from the check-in at the hotel
+        - Detailed itinerary with timing in 24-hour format
         - Distance between locations
         - Transport options
         - Meal recommendations
@@ -206,12 +393,18 @@ app.post("/generate-trip", async (req, res) => {
 
         const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const result = await model.generateContent(prompt);
-        let rawResponse = result.response.text();
+        rawResponse = result.response.text();
 
-        rawResponse = rawResponse
-            .replace(/```json\n|\n```/g, '')
-            .trim();
+        // Add these debug lines
+        console.log("Raw response first 200 chars:", rawResponse.substring(0, 200));
+        console.log("Raw response length:", rawResponse.length);
+
+        // Preprocess and clean the response
+        rawResponse = preprocessGeminiResponse(
+            rawResponse.replace(/```json\n|\n```|```/g, '').trim()
+        );
         
+        // Try to parse the JSON
         const tripPlan = parseAndValidateJSON(rawResponse);
 
         if (!tripPlan || typeof tripPlan !== 'object') {
@@ -256,20 +449,32 @@ app.post("/generate-trip", async (req, res) => {
 
     } catch (error) {
         console.error("Error generating trip:", error);
-        res.status(500).json({ 
+        
+        // Prepare a more helpful error response
+        let errorDetails = error.message;
+        let errorResponse = {
             success: false,
             error: "Failed to generate trip",
-            details: error.message,
-            raw: error.toString(),
-            timestamp: new Date().toISOString()
-        });
+            details: errorDetails
+        };
+        
+        // If we have the raw response, include a sample to help debugging
+        if (typeof rawResponse === 'string') {
+            errorResponse.responseSample = rawResponse.substring(0, 300) + '...';
+            
+            // Try to save the problematic response for debugging
+            try {
+                const fs = require('fs');
+                fs.writeFileSync('error_response.json', rawResponse);
+                console.log('Wrote error response to error_response.json');
+            } catch (fsError) {
+                console.log('Could not save error response:', fsError);
+            }
+        }
+        
+        res.status(500).json(errorResponse);
     }
 });
-
-
-
-
-
 
 app.post("/save-trip", async (req, res) => {
     try {
@@ -346,17 +551,6 @@ app.delete("/trip/:tripId", async (req, res) => {
       });
     }
   });
-
-
-
-
-
-
-
-
-
-
-
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
